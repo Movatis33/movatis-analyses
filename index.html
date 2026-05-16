@@ -65,9 +65,6 @@ tr{border-bottom:1px solid #0a1628;}
 <body>
 <div id="app"></div>
 <script>
-// ══════════════════════════════════════════════════
-// DONNÉES
-// ══════════════════════════════════════════════════
 const SK="movatis_v3";
 const DEMO={};
 const PRODS={RITOCAL_GR:{n:"RITOCAL GR",r:"PM-531"},ACTIBON:{n:"ACTIBON SHOCK",r:"PM-420"},ALGIKLEAN:{n:"ALGIKLEAN",r:"PM-634"},ALGI_YELLOW:{n:"ALGI-YELLOW",r:"PM-654"},PH_MOINS:{n:"pH MOINS",r:"PM-601"},TAC_PLUS:{n:"TAC PLUS",r:"PM-612"},STABILISANT:{n:"STABILISANT",r:"PM-401"},PHOS_OUT:{n:"PHOS-OUT",r:"PM-625"},BIOFILM_OUT:{n:"BIOFILM OUT",r:"PM-630"},ULTRA_CLEAR:{n:"ULTRA CLEAR",r:"PM-643"},ION_MAGNETIC:{n:"ION MAGNETIC",r:"PM-615"},STICKS_CTX:{n:"Sticks chlore non stabilisé",r:"CTX-123"},CELNET:{n:"CELNET",r:"PM-142"}};
@@ -134,9 +131,7 @@ function buildPres(vals,vol,mode,aspect,algM){
   return{actions_tech:at,actions_client:ac,products:pr,warnings:wa};
 }
 
-// ══════════════════════════════════════════════════
-// CLAUDE API
-// ══════════════════════════════════════════════════
+// ── CLAUDE API ────────────────────────────────────
 async function claude(messages,max=600){
   if(!S.apiKey){throw new Error("Clé API manquante — configure-la dans ⚙️ Paramètres");}
   const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":S.apiKey},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:max,messages})});
@@ -149,46 +144,34 @@ async function claude(messages,max=600){
 async function readPhoto(b64,mime){return claude([{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:'Analyse cette image de test d\'eau de piscine. Il peut s\'agir d\'une BANDELETTE colorimétrique (Hach, Bayrol, AquaChek, Marina...) tenue devant son flacon avec l\'échelle de référence, ou d\'un PHOTOMÈTRE numérique (PoolLab, Scuba II, eXact...), ou d\'un comparateur liquide.\n\nPOUR UNE BANDELETTE : compare soigneusement les couleurs de chaque plage de la bandelette avec l\'échelle imprimée sur le flacon. Chaque plage correspond à un paramètre. La lecture est approximative — retourne la valeur de l\'échelle la plus proche de la couleur observée.\n\nJSON STRICT uniquement, aucun texte avant ou après :\n{"FCL":null,"TCL":null,"pH":null,"TAC":null,"TH":null,"CYA":null,"Fe":null,"Cu":null,"Phos":null}\n\nCorrespondances : FCL=Free Chlorine/Chlore Libre(mg/L), TCL=Total Chlorine(mg/L), pH=valeur pH, TAC=Alkalinity/Alcalinité(ppm), TH=Hardness/TH(ppm), CYA=Stabilizer/Stabilisant(ppm), Fe=Iron/Fer(mg/L), Cu=Copper/Cuivre(mg/L), Phos=Phosphates(ppb). Nombres uniquement, null si absent ou illisible.'}]}],500);}
 async function readHTH(b64){return claude([{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:'Rapport HTH Test\'O Pro. Extrais UNIQUEMENT les valeurs mesurées (pas les idéales). JSON STRICT:\n{"clientName":null,"date":null,"TAC":null,"pH":null,"CYA":null,"FCL":null,"CCL":null,"salt":null,"TH":null,"Cu":null,"Fe":null,"Phos":null,"volume":null,"mode":null}\nclientName=nom client, date=JJ/MM/AAAA, TAC=ALK, FCL=F Cl (chlore libre), CCL=chlore combiné, TH=HARD, Cu=COPPER, Fe=IRON, Phos=PHOS(ppb), volume=m³, mode="electrolyseur"/"chlore_non_stab"/"chlore_stab"/"brome"/"uv"/null. Ne pas extraire les recommandations HTH.'}]}],600);}
 
-async function driveSave(clients){
-  const FOLDER="1pplP7oC8Vkue24sWScSTqkOamC5AP0Fx";
-  const NAME="movatis_backup.json";
-  const tok=S.gtoken;
-  if(!tok)throw new Error("Token Google manquant — utilise le bouton 🔑 Connecter Drive");
-  const body=JSON.stringify(clients);
-  const q=encodeURIComponent(`name='${NAME}' and '${FOLDER}' in parents and trashed=false`);
-  const ls=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,{headers:{Authorization:"Bearer "+tok}});
-  if(!ls.ok)throw new Error("Drive list "+ls.status);
-  const ld=await ls.json();
-  const fid=ld.files?.[0]?.id;
-  const meta=fid?JSON.stringify({name:NAME}):JSON.stringify({name:NAME,parents:[FOLDER]});
-  const form=new FormData();
-  form.append("metadata",new Blob([meta],{type:"application/json"}));
-  form.append("file",new Blob([body],{type:"application/json"}));
-  const url=fid
-    ?`https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart`
-    :`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-  const r=await fetch(url,{method:fid?"PATCH":"POST",headers:{Authorization:"Bearer "+tok},body:form});
-  if(!r.ok){const t=await r.text();throw new Error("Drive save "+r.status+": "+t.slice(0,120));}
+// ── EXPORT / IMPORT JSON (remplace Drive) ─────────
+function exportJSON(){
+  const data=JSON.stringify(S.clients,null,2);
+  const blob=new Blob([data],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const d=new Date();
+  const stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  a.href=url;a.download="movatis_backup_"+stamp+".json";
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+  set({dvMsg:"✅ Fichier téléchargé — movatis_backup_"+stamp+".json"});
 }
-async function driveLoad(){
-  const FOLDER="1pplP7oC8Vkue24sWScSTqkOamC5AP0Fx";
-  const NAME="movatis_backup.json";
-  const tok=S.gtoken;
-  if(!tok)throw new Error("Token Google manquant — utilise le bouton 🔑 Connecter Drive");
-  const q=encodeURIComponent(`name='${NAME}' and '${FOLDER}' in parents and trashed=false`);
-  const ls=await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`,{headers:{Authorization:"Bearer "+tok}});
-  if(!ls.ok)throw new Error("Drive list "+ls.status);
-  const ld=await ls.json();
-  const fid=ld.files?.[0]?.id;
-  if(!fid)return null;
-  const r=await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`,{headers:{Authorization:"Bearer "+tok}});
-  if(!r.ok)return null;
-  try{return await r.json();}catch{return null;}
+function importJSON(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(typeof data!=="object"||Array.isArray(data))throw new Error("Format invalide");
+      lsSave(data);
+      set({clients:data,dvMsg:"✅ "+Object.keys(data).length+" client(s) restauré(s)"});
+    }catch{set({dvMsg:"❌ Fichier invalide — vérifiez qu'il s'agit d'un backup Movatis"});}
+  };
+  reader.readAsText(file);
 }
 
-// ══════════════════════════════════════════════════
-// ÉTAT
-// ══════════════════════════════════════════════════
+// ── ÉTAT ──────────────────────────────────────────
 const S={
   screen:"home",clients:{},sel:null,pres:null,
   vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},
@@ -196,13 +179,11 @@ const S={
   showHTH:false,hthStep:"upload",hthRes:[],hthProg:{c:0,t:0},hthDone:{i:0,s:0},
   showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
   sq:"",dvMsg:"",dvLoad:false,pMsg:"",
-  apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false,gtoken:localStorage.getItem("movatis_gtoken")||"",gtoken:localStorage.getItem("movatis_gtoken")||""
+  apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false
 };
 function set(p){Object.assign(S,p);render();}
 
-// ══════════════════════════════════════════════════
-// UTILS HTML
-// ══════════════════════════════════════════════════
+// ── UTILS HTML ────────────────────────────────────
 function e(s){if(!s&&s!==0)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function j(o){return JSON.stringify(o).replace(/</g,"\\u003c").replace(/"/g,"&quot;");}
 
@@ -220,9 +201,7 @@ function spark(data,color,w=180,h=44,tMin=null,tMax=null){
   return`<svg width="${w+32}" height="${h}" style="overflow:visible">${zone}${lMin}${lMax}<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>${vs.map((v,i)=>{const x=(i/(vs.length-1))*w,y=yp(v);return`<circle cx="${x}" cy="${y}" r="2.5" fill="${color}"/>`;}).join("")}</svg>`;
 }
 
-// ══════════════════════════════════════════════════
-// RENDER
-// ══════════════════════════════════════════════════
+// ── RENDER ────────────────────────────────────────
 function render(){
   const app=document.getElementById("app");
   if(!app)return;
@@ -244,7 +223,7 @@ function buildAll(){
   return h;
 }
 
-// ── SETTINGS ─────────────────────────────────────
+// ── SETTINGS ──────────────────────────────────────
 function buildSettings(){
   return`<div class="card" style="border-color:#2563eb;margin-bottom:12px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -263,7 +242,7 @@ function buildSettings(){
 
 // ── HOME ──────────────────────────────────────────
 function buildHome(){
-  const {clients,sq,showAdd,nName,nVol,nMode,dvMsg,dvLoad}=S;
+  const {clients,sq,showAdd,nName,nVol,nMode,dvMsg}=S;
   const filtered=Object.entries(clients).filter(([,c])=>c.name.toLowerCase().includes(sq.toLowerCase())).sort(([,a],[,b])=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'}));
   let h=`<div class="screen">
 <div class="hdr">
@@ -278,6 +257,7 @@ function buildHome(){
 <div class="pad">
   ${S.showSettings?buildSettings():""}
   ${!S.apiKey?`<div class="warn-box" style="cursor:pointer" onclick="set({showSettings:true})">⚙️ Clé API Anthropic requise — appuye ici pour la configurer</div>`:""}
+
   <div class="card" style="background:linear-gradient(135deg,#0a1e3d,#0d2a50);border-color:#2563eb;margin-bottom:12px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
       <div style="font-size:22px">📄</div>
@@ -285,15 +265,20 @@ function buildHome(){
     </div>
     <button class="btn-hth" onclick="openHTH()">📄 Importer des PDF HTH</button>
   </div>
+
   <div class="drv-box">
-    <div class="sec" style="margin-bottom:8px">💾 Sauvegarde Google Drive</div>
-    ${!S.gtoken?`<button class="btn-g" style="font-size:13px;margin-bottom:8px;color:#4ade80;border-color:#4ade80" onclick="connectDrive()">🔑 Connecter Drive</button>`:`<button class="btn-g" style="font-size:11px;margin-bottom:8px;color:#475569;border-color:#1a3356;padding:4px 10px" onclick="disconnectDrive()">🔑 Drive connecté ✓</button>`}
+    <div class="sec" style="margin-bottom:8px">💾 Sauvegarde locale</div>
+    <div style="font-size:12px;color:#475569;margin-bottom:10px">Exporte tes données en JSON sur ton téléphone, restaure-les à tout moment.</div>
     <div class="row">
-      <button class="btn" style="flex:1;font-size:13px;margin-bottom:0" onclick="onDriveSave()" ${dvLoad||!S.gtoken?"disabled":""}>💾 Sauvegarder</button>
-      <button class="btn-g" style="flex:1;font-size:13px;margin-bottom:0" onclick="onDriveLoad()" ${dvLoad||!S.gtoken?"disabled":""}>📥 Restaurer</button>
+      <button class="btn" style="flex:1;font-size:13px;margin-bottom:0" onclick="exportJSON()">⬇️ Exporter</button>
+      <label class="btn-g" style="flex:1;font-size:13px;margin-bottom:0;cursor:pointer;text-align:center;padding:10px 18px">
+        ⬆️ Restaurer
+        <input type="file" accept="application/json" style="display:none" onchange="importJSON(this.files[0]);this.value=''"/>
+      </label>
     </div>
     ${dvMsg?`<p style="font-size:12px;margin-top:8px;margin-bottom:0;color:${dvMsg.startsWith("✅")?"#4ade80":dvMsg.startsWith("❌")?"#f87171":"#94a3b8"}">${e(dvMsg)}</p>`:""}
   </div>
+
   <input type="text" placeholder="🔍 Rechercher un client…" value="${e(sq)}" oninput="set({sq:this.value})" style="margin-bottom:12px"/>`;
 
   if(showAdd){
@@ -533,7 +518,6 @@ function buildHTH(){
   const dup=hthRes.filter(r=>r.status==="doublon").length;
   const err=hthRes.filter(r=>r.status==="error").length;
   let inner="";
-
   if(hthStep==="upload"){
     inner=`<div style="background:#070d1a;border:2px dashed #1e4976;border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer" onclick="document.getElementById('hthF').click()">
   <div style="font-size:40px;margin-bottom:8px">📄</div>
@@ -542,7 +526,6 @@ function buildHTH(){
 </div>
 <input type="file" id="hthF" accept="application/pdf" multiple style="display:none" onchange="onHTH(this)"/>`;
   }
-
   if(hthStep==="processing"){
     const pct=hthProg.t?Math.round(hthProg.c/hthProg.t*100):0;
     inner=`<div style="text-align:center;padding:24px 0">
@@ -552,14 +535,12 @@ function buildHTH(){
   <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
 </div>`;
   }
-
   if(hthStep==="results"){
     inner=`<div class="g3" style="margin-bottom:14px">
   <div class="stat" style="background:#0a2a1a;border:1px solid #166534"><div class="n" style="color:#4ade80">${ok}</div><div class="l">À importer</div></div>
   <div class="stat" style="background:#1a2a0a;border:1px solid #3a4a1a"><div class="n" style="color:#facc15">${dup}</div><div class="l">Doublons</div></div>
   <div class="stat" style="background:#2a0a0a;border:1px solid #7f1d1d"><div class="n" style="color:#f87171">${err}</div><div class="l">Erreurs</div></div>
 </div>`;
-
     hthRes.forEach((r,idx)=>{
       const bc=r.status==="doublon"?"#3a4a1a":r.status==="error"?"#7f1d1d":"#1e4976";
       const sc=r.status==="ok"?"#4ade80":r.status==="doublon"?"#facc15":"#f87171";
@@ -593,12 +574,10 @@ function buildHTH(){
       }
       inner+=`</div>`;
     });
-
     if(ok>0)inner+=`<button class="btn btn-ok" onclick="confirmHTH()">✅ Importer ${ok} analyse${ok>1?"s":""}${dup>0?" · "+dup+" doublon"+(dup>1?"s":"")+" ignoré"+(dup>1?"s":""):""}</button>`;
     else inner+=`<div style="text-align:center;color:#475569;font-size:13px;padding:12px 0">${dup?"Toutes les analyses sont déjà présentes.":"Aucune analyse valide."}</div>`;
     inner+=`<button class="btn-g" onclick="set({hthStep:'upload',hthRes:[]})">← Charger d'autres PDF</button>`;
   }
-
   if(hthStep==="done"){
     inner=`<div style="text-align:center;padding:20px 0">
   <div style="font-size:48px;margin-bottom:12px">✅</div>
@@ -608,7 +587,6 @@ function buildHTH(){
   <button class="btn" onclick="closeHTH()">Voir les clients →</button>
 </div>`;
   }
-
   return`<div class="overlay"><div class="sheet">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
   <div><div style="font-weight:800;font-size:16px;color:#e2e8f0">📄 Import HTH Test'O</div><div style="font-size:11px;color:#475569;margin-top:2px">Valeurs brutes · Multi-PDF · Doublons ignorés</div></div>
@@ -618,10 +596,10 @@ ${inner}
 </div></div>`;
 }
 
-// ══════════════════════════════════════════════════
-// HANDLERS GLOBAUX
-// ══════════════════════════════════════════════════
+// ── HANDLERS ──────────────────────────────────────
 window.set=set;
+window.exportJSON=exportJSON;
+window.importJSON=importJSON;
 window.saveApiKey=()=>{
   const k=document.getElementById("apiKeyInput")?.value?.trim();
   if(!k)return;
@@ -634,12 +612,9 @@ window.clearApiKey=()=>{
 };
 window.goClient=id=>set({sel:id,screen:"client",pres:null,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
 window.goAnalyse=()=>set({screen:"analyse",vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
-window.setV=(k,v)=>set({vals:{...S.vals,[k]:v}});
 window.setPres=p=>set({screen:"ordonnance",pres:p});
-// Saisie décimale sans re-render (évite perte focus clavier mobile)
 window.setDecimalField=function(key,input){Object.assign(S,{[key]:input.value});};
-window.setVDecimal=function(key,input){const raw=input.value;S.vals={...S.vals,[key]:raw};};
-// Saisie texte sans re-render
+window.setVDecimal=function(key,input){S.vals={...S.vals,[key]:input.value};};
 window.setTextField=function(key,input){Object.assign(S,{[key]:input.value});};
 window.copyMail=()=>{const t=document.getElementById("mailTxt");if(t)navigator.clipboard?.writeText(t.value);};
 
@@ -668,7 +643,7 @@ window.onPhoto=async function(input){
     const vals={...S.vals};
     PKS.forEach(k=>{if(parsed[k]!=null)vals[k]=String(parsed[k]);});
     set({vals,pMsg:`✅ ${Object.values(parsed).filter(v=>v!==null).length} valeur(s) extraite(s) — vérifie et complète si besoin`});
-  }catch{set({pMsg:"❌ Erreur lecture — saisis manuellement"});}
+  }catch(err){set({pMsg:"❌ "+( err?.message||"Erreur lecture — saisis manuellement")});}
   input.value="";
 };
 
@@ -735,33 +710,7 @@ window.confirmHTH=function(){
   set({clients:upd,hthStep:"done",hthDone:{i,s}});
 };
 
-window.connectDrive=()=>{
-  const tok=prompt("Collez votre token Google Drive OAuth2 access_token (obtenu via https://developers.google.com/oauthplayground):\n\nScope requis : https://www.googleapis.com/auth/drive.file");
-  if(tok&&tok.trim()){localStorage.setItem("movatis_gtoken",tok.trim());set({gtoken:tok.trim(),dvMsg:"✅ Token Drive enregistré"});}
-};
-window.disconnectDrive=()=>{
-  localStorage.removeItem("movatis_gtoken");
-  set({gtoken:"",dvMsg:""});
-};
-window.onDriveSave=async()=>{
-  set({dvLoad:true,dvMsg:"💾 Sauvegarde dans Drive…"});
-  try{await driveSave(S.clients);set({dvMsg:"✅ Sauvegardé — movatis_backup.json dans Drive"});}
-  catch{set({dvMsg:"❌ Erreur — vérifie la connexion Google Drive"});}
-  set({dvLoad:false});
-};
-window.onDriveLoad=async()=>{
-  set({dvLoad:true,dvMsg:"📥 Restauration depuis Drive…"});
-  try{
-    const d=await driveLoad();
-    if(d&&typeof d==="object"){lsSave(d);set({clients:d,dvMsg:"✅ Données restaurées depuis Drive"});}
-    else set({dvMsg:"❌ Fichier movatis_backup.json introuvable"});
-  }catch{set({dvMsg:"❌ Erreur Drive"});}
-  set({dvLoad:false});
-};
-
-// ══════════════════════════════════════════════════
-// SERVICE WORKER PWA
-// ══════════════════════════════════════════════════
+// ── SERVICE WORKER PWA ────────────────────────────
 if("serviceWorker"in navigator){
   const sw=[
     'const C="movatis-v1";',
@@ -782,9 +731,7 @@ if("serviceWorker"in navigator){
   navigator.serviceWorker.register(swUrl).catch(()=>{});
 }
 
-// ══════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════
+// ── INIT ──────────────────────────────────────────
 S.clients=lsLoad();
 render();
 </script>
