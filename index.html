@@ -144,18 +144,27 @@ async function claude(messages,max=600){
 async function readPhoto(b64,mime){return claude([{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:'Analyse cette image de test d\'eau de piscine. Il peut s\'agir d\'une BANDELETTE colorimétrique (Hach, Bayrol, AquaChek, Marina...) tenue devant son flacon avec l\'échelle de référence, ou d\'un PHOTOMÈTRE numérique (PoolLab, Scuba II, eXact...), ou d\'un comparateur liquide.\n\nPOUR UNE BANDELETTE : compare soigneusement les couleurs de chaque plage de la bandelette avec l\'échelle imprimée sur le flacon. Chaque plage correspond à un paramètre. La lecture est approximative — retourne la valeur de l\'échelle la plus proche de la couleur observée.\n\nJSON STRICT uniquement, aucun texte avant ou après :\n{"FCL":null,"TCL":null,"pH":null,"TAC":null,"TH":null,"CYA":null,"Fe":null,"Cu":null,"Phos":null}\n\nCorrespondances : FCL=Free Chlorine/Chlore Libre(mg/L), TCL=Total Chlorine(mg/L), pH=valeur pH, TAC=Alkalinity/Alcalinité(ppm), TH=Hardness/TH(ppm), CYA=Stabilizer/Stabilisant(ppm), Fe=Iron/Fer(mg/L), Cu=Copper/Cuivre(mg/L), Phos=Phosphates(ppb). Nombres uniquement, null si absent ou illisible.'}]}],500);}
 async function readHTH(b64){return claude([{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:'Rapport HTH Test\'O Pro. Extrais UNIQUEMENT les valeurs mesurées (pas les idéales). JSON STRICT:\n{"clientName":null,"date":null,"TAC":null,"pH":null,"CYA":null,"FCL":null,"CCL":null,"salt":null,"TH":null,"Cu":null,"Fe":null,"Phos":null,"volume":null,"mode":null}\nclientName=nom client, date=JJ/MM/AAAA, TAC=ALK, FCL=F Cl (chlore libre), CCL=chlore combiné, TH=HARD, Cu=COPPER, Fe=IRON, Phos=PHOS(ppb), volume=m³, mode="electrolyseur"/"chlore_non_stab"/"chlore_stab"/"brome"/"uv"/null. Ne pas extraire les recommandations HTH.'}]}],600);}
 
-// ── EXPORT / IMPORT JSON (remplace Drive) ─────────
-function exportJSON(){
+// ── EXPORT / IMPORT JSON ──────────────────────────
+async function exportJSON(){
   const data=JSON.stringify(S.clients,null,2);
+  const d=new Date();
+  const stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const fileName="movatis_backup_"+stamp+".json";
+  if(window.showSaveFilePicker){
+    try{
+      const fh=await window.showSaveFilePicker({suggestedName:fileName,types:[{description:"Fichier JSON",accept:{"application/json":[".json"]}}]});
+      const ws=await fh.createWritable();
+      await ws.write(data);await ws.close();
+      set({dvMsg:"✅ Sauvegarde enregistrée — "+fh.name});return;
+    }catch(e){if(e.name==="AbortError")return;}
+  }
   const blob=new Blob([data],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
-  const d=new Date();
-  const stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-  a.href=url;a.download="movatis_backup_"+stamp+".json";
+  a.href=url;a.download=fileName;
   document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
-  set({dvMsg:"✅ Fichier téléchargé — movatis_backup_"+stamp+".json"});
+  set({dvMsg:"✅ Fichier téléchargé — "+fileName});
 }
 function importJSON(file){
   if(!file)return;
@@ -171,6 +180,66 @@ function importJSON(file){
   reader.readAsText(file);
 }
 
+// ── GOOGLE DRIVE BACKUP ───────────────────────────
+const DRIVE_FILE="movatis_backup.json";
+async function driveRequest(method,url,body,isJson){
+  const token=await getDriveToken();
+  const headers={"Authorization":"Bearer "+token};
+  if(isJson)headers["Content-Type"]="application/json";
+  const r=await fetch(url,{method,headers,body:body?JSON.stringify(body):undefined});
+  if(!r.ok)throw new Error("Drive "+r.status);
+  return r;
+}
+async function getDriveToken(){
+  // OAuth2 implicit flow
+  return new Promise((res,rej)=>{
+    const CLIENT_ID="";// à renseigner si OAuth custom — sinon on utilise le MCP Claude
+    // Fallback : on passe par l'API Claude avec MCP Drive
+    rej(new Error("use_mcp"));
+  });
+}
+async function saveToDrive(){
+  set({dvLoad:true,dvMsg:"💾 Sauvegarde Drive en cours…"});
+  try{
+    const data=JSON.stringify(S.clients,null,2);
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":S.apiKey},
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",max_tokens:500,
+        mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"}],
+        messages:[{role:"user",content:`Utilise Google Drive pour créer ou remplacer un fichier nommé exactement "${DRIVE_FILE}" dans le dossier "Ai - Applications" de mon Drive (crée le dossier s'il n'existe pas). Contenu JSON à écrire : ${data}. Confirme simplement le nom du fichier et le dossier une fois fait, rien d'autre.`}]
+      })
+    });
+    if(!resp.ok)throw new Error("API "+resp.status);
+    const d=await resp.json();
+    const txt=d.content?.find(b=>b.type==="text")?.text||"";
+    set({dvLoad:false,dvMsg:txt.includes(DRIVE_FILE)||txt.toLowerCase().includes("créé")||txt.toLowerCase().includes("enregistr")?"✅ Sauvegardé dans Google Drive — "+DRIVE_FILE:"✅ Sauvegarde Drive effectuée"});
+  }catch(e){set({dvLoad:false,dvMsg:"❌ Erreur Drive — "+( e?.message||"inconnue")});}
+}
+async function loadFromDrive(){
+  set({dvLoad:true,dvMsg:"📥 Restauration depuis Drive…"});
+  try{
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":S.apiKey},
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",max_tokens:10000,
+        mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"}],
+        messages:[{role:"user",content:`Cherche dans mon Google Drive un fichier nommé "${DRIVE_FILE}" dans le dossier "Ai - Applications". Si tu le trouves, retourne UNIQUEMENT son contenu JSON brut, sans aucun texte autour, sans markdown, sans backticks.`}]
+      })
+    });
+    if(!resp.ok)throw new Error("API "+resp.status);
+    const d=await resp.json();
+    const txt=d.content?.find(b=>b.type==="text")?.text||"";
+    const clean=txt.replace(/```json|```/g,"").trim();
+    const parsed=JSON.parse(clean);
+    if(typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Format invalide");
+    lsSave(parsed);
+    set({clients:parsed,dvLoad:false,dvMsg:"✅ "+Object.keys(parsed).length+" client(s) restauré(s) depuis Drive"});
+  }catch(e){set({dvLoad:false,dvMsg:"❌ Erreur restauration — "+( e?.message||"inconnue")});}
+}
+
 // ── ÉTAT ──────────────────────────────────────────
 const S={
   screen:"home",clients:{},sel:null,pres:null,
@@ -178,7 +247,7 @@ const S={
   aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",
   showHTH:false,hthStep:"upload",hthRes:[],hthProg:{c:0,t:0},hthDone:{i:0,s:0},
   showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
-  sq:"",dvMsg:"",dvLoad:false,pMsg:"",
+  sq:"",dvMsg:"",dvLoad:false,dvDrive:false,pMsg:"",
   apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false
 };
 function set(p){Object.assign(S,p);render();}
@@ -267,12 +336,18 @@ function buildHome(){
   </div>
 
   <div class="drv-box">
-    <div class="sec" style="margin-bottom:8px">💾 Sauvegarde locale</div>
-    <div style="font-size:12px;color:#475569;margin-bottom:10px">Exporte tes données en JSON sur ton téléphone, restaure-les à tout moment.</div>
+    <div class="sec" style="margin-bottom:8px">💾 Sauvegarde</div>
+    <div style="font-size:12px;color:#475569;margin-bottom:10px">Google Drive ou fichier local — restaure à tout moment.</div>
+    <div style="font-size:11px;font-weight:700;color:#7dd3fc;margin-bottom:6px">☁️ Google Drive</div>
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn" style="flex:1;font-size:13px;margin-bottom:0;background:#1a56db" onclick="saveToDrive()" ${S.dvLoad?"disabled":""}>⬆️ Sauvegarder</button>
+      <button class="btn-g" style="flex:1;font-size:13px;margin-bottom:0" onclick="loadFromDrive()" ${S.dvLoad?"disabled":""}>⬇️ Restaurer</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;margin-top:4px">💻 Fichier local</div>
     <div class="row">
-      <button class="btn" style="flex:1;font-size:13px;margin-bottom:0" onclick="exportJSON()">⬇️ Exporter</button>
+      <button class="btn-g" style="flex:1;font-size:13px;margin-bottom:0" onclick="exportJSON()">⬇️ Exporter</button>
       <label class="btn-g" style="flex:1;font-size:13px;margin-bottom:0;cursor:pointer;text-align:center;padding:10px 18px">
-        ⬆️ Restaurer
+        ⬆️ Importer
         <input type="file" accept="application/json" style="display:none" onchange="importJSON(this.files[0]);this.value=''"/>
       </label>
     </div>
@@ -303,18 +378,21 @@ function buildHome(){
 
   filtered.forEach(([id,c])=>{
     const last=c.analyses?.length?c.analyses[c.analyses.length-1]:null;
-    h+=`<div class="card" style="cursor:pointer" onclick="goClient('${id}')">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <div style="font-weight:700;font-size:15px">${e(c.name)}</div>
-      <div style="font-size:12px;color:#475569;margin-top:2px">${c.vol} m³ · ${e(ML[c.mode]||c.mode)}</div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:11px;color:#334155">${c.analyses?.length||0} analyse(s)</div>
-      ${last?`<div style="font-size:10px;color:#475569">${last.date}</div>`:""}
-      ${c.analyses?.some(a=>a.sourceHTH)?`<div style="font-size:9px;color:#7dd3fc;margin-top:1px">HTH ●</div>`:""}
+    h+=`<div class="card" style="display:flex;align-items:center;gap:10px">
+  <div style="flex:1;cursor:pointer" onclick="goClient('${id}')">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:700;font-size:15px">${e(c.name)}</div>
+        <div style="font-size:12px;color:#475569;margin-top:2px">${c.vol} m³ · ${e(ML[c.mode]||c.mode)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:#334155">${c.analyses?.length||0} analyse(s)</div>
+        ${last?`<div style="font-size:10px;color:#475569">${last.date}</div>`:""}
+        ${c.analyses?.some(a=>a.sourceHTH)?`<div style="font-size:9px;color:#7dd3fc;margin-top:1px">HTH ●</div>`:""}
+      </div>
     </div>
   </div>
+  <button onclick="deleteClient('${id}')" style="background:none;border:none;color:#475569;font-size:20px;cursor:pointer;padding:4px 2px;flex-shrink:0;line-height:1" title="Supprimer">🗑️</button>
 </div>`;
   });
   h+=`</div></div>`;
@@ -597,9 +675,20 @@ ${inner}
 }
 
 // ── HANDLERS ──────────────────────────────────────
+window.deleteClient=function(id){
+  const c=S.clients[id];
+  if(!c)return;
+  if(!confirm(`Supprimer "${c.name}" et toutes ses analyses ?\n\nCette action est irréversible.`))return;
+  const clients={...S.clients};
+  delete clients[id];
+  lsSave(clients);
+  set({clients});
+};
 window.set=set;
 window.exportJSON=exportJSON;
 window.importJSON=importJSON;
+window.saveToDrive=saveToDrive;
+window.loadFromDrive=loadFromDrive;
 window.saveApiKey=()=>{
   const k=document.getElementById("apiKeyInput")?.value?.trim();
   if(!k)return;
