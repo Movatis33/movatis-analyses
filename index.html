@@ -182,62 +182,57 @@ function importJSON(file){
 
 // ── GOOGLE DRIVE BACKUP ───────────────────────────
 const DRIVE_FILE="movatis_backup.json";
-async function driveRequest(method,url,body,isJson){
-  const token=await getDriveToken();
-  const headers={"Authorization":"Bearer "+token};
-  if(isJson)headers["Content-Type"]="application/json";
-  const r=await fetch(url,{method,headers,body:body?JSON.stringify(body):undefined});
-  if(!r.ok)throw new Error("Drive "+r.status);
-  return r;
-}
-async function getDriveToken(){
-  // OAuth2 implicit flow
-  return new Promise((res,rej)=>{
-    const CLIENT_ID="";// à renseigner si OAuth custom — sinon on utilise le MCP Claude
-    // Fallback : on passe par l'API Claude avec MCP Drive
-    rej(new Error("use_mcp"));
+const DRIVE_FOLDER="Ai - Applications";
+const DRIVE_MCP={type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"};
+
+async function callDriveMCP(prompt,maxTok){
+  if(!S.apiKey)throw new Error("Clé API manquante");
+  const resp=await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":S.apiKey},
+    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTok||1024,mcp_servers:[DRIVE_MCP],messages:[{role:"user",content:prompt}]})
   });
+  if(!resp.ok){const t=await resp.text().catch(()=>"");throw new Error("API "+resp.status+(t?": "+t.slice(0,80):""));}
+  return resp.json();
 }
+
 async function saveToDrive(){
   set({dvLoad:true,dvMsg:"💾 Sauvegarde Drive en cours…"});
   try{
-    const data=JSON.stringify(S.clients,null,2);
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":S.apiKey},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",max_tokens:500,
-        mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"}],
-        messages:[{role:"user",content:`Utilise Google Drive pour créer ou remplacer un fichier nommé exactement "${DRIVE_FILE}" dans le dossier "Ai - Applications" de mon Drive (crée le dossier s'il n'existe pas). Contenu JSON à écrire : ${data}. Confirme simplement le nom du fichier et le dossier une fois fait, rien d'autre.`}]
-      })
-    });
-    if(!resp.ok)throw new Error("API "+resp.status);
-    const d=await resp.json();
+    // Encoder le JSON en base64 pour éviter tout problème d'injection dans le prompt
+    const jsonStr=JSON.stringify(S.clients,null,2);
+    const b64=btoa(unescape(encodeURIComponent(jsonStr)));
+    const prompt=`Utilise Google Drive pour faire ceci en 2 étapes :
+1. Cherche ou crée un dossier nommé exactement "${DRIVE_FOLDER}" à la racine de mon Drive.
+2. Dans ce dossier, crée ou remplace un fichier nommé exactement "${DRIVE_FILE}". Le contenu du fichier est ce texte encodé en base64, décode-le et écris le résultat : ${b64}
+Réponds juste "OK: ${DRIVE_FILE} dans ${DRIVE_FOLDER}" si réussi.`;
+    const d=await callDriveMCP(prompt,1024);
     const txt=d.content?.find(b=>b.type==="text")?.text||"";
-    set({dvLoad:false,dvMsg:txt.includes(DRIVE_FILE)||txt.toLowerCase().includes("créé")||txt.toLowerCase().includes("enregistr")?"✅ Sauvegardé dans Google Drive — "+DRIVE_FILE:"✅ Sauvegarde Drive effectuée"});
-  }catch(e){set({dvLoad:false,dvMsg:"❌ Erreur Drive — "+( e?.message||"inconnue")});}
+    set({dvLoad:false,dvMsg:txt.toLowerCase().includes("ok")||txt.includes(DRIVE_FILE)?"✅ Sauvegardé — "+DRIVE_FOLDER+"/"+DRIVE_FILE:"✅ Sauvegarde Drive effectuée"});
+  }catch(e){set({dvLoad:false,dvMsg:"❌ Erreur sauvegarde — "+(e?.message||"inconnue")});}
 }
+
 async function loadFromDrive(){
   set({dvLoad:true,dvMsg:"📥 Restauration depuis Drive…"});
   try{
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":S.apiKey},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",max_tokens:10000,
-        mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"}],
-        messages:[{role:"user",content:`Cherche dans mon Google Drive un fichier nommé "${DRIVE_FILE}" dans le dossier "Ai - Applications". Si tu le trouves, retourne UNIQUEMENT son contenu JSON brut, sans aucun texte autour, sans markdown, sans backticks.`}]
-      })
-    });
-    if(!resp.ok)throw new Error("API "+resp.status);
-    const d=await resp.json();
-    const txt=d.content?.find(b=>b.type==="text")?.text||"";
-    const clean=txt.replace(/```json|```/g,"").trim();
+    const prompt=`Cherche dans mon Google Drive un fichier nommé "${DRIVE_FILE}" dans le dossier "${DRIVE_FOLDER}". Si tu le trouves, retourne UNIQUEMENT son contenu brut, sans aucun texte avant ou après, sans markdown, sans backticks. Si tu ne le trouves pas, réponds uniquement "NOTFOUND".`;
+    const d=await callDriveMCP(prompt,4096);
+    // Chercher le résultat dans les blocs mcp_tool_result d'abord, puis texte
+    let raw="";
+    const toolResult=d.content?.find(b=>b.type==="mcp_tool_result");
+    if(toolResult){
+      raw=toolResult.content?.[0]?.text||"";
+    }
+    if(!raw){
+      raw=d.content?.find(b=>b.type==="text")?.text||"";
+    }
+    if(!raw||raw.trim()==="NOTFOUND")throw new Error("Fichier introuvable dans Drive");
+    const clean=raw.replace(/```json|```/g,"").trim();
     const parsed=JSON.parse(clean);
     if(typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Format invalide");
     lsSave(parsed);
     set({clients:parsed,dvLoad:false,dvMsg:"✅ "+Object.keys(parsed).length+" client(s) restauré(s) depuis Drive"});
-  }catch(e){set({dvLoad:false,dvMsg:"❌ Erreur restauration — "+( e?.message||"inconnue")});}
+  }catch(e){set({dvLoad:false,dvMsg:"❌ Erreur restauration — "+(e?.message||"inconnue")});}
 }
 
 // ── ÉTAT ──────────────────────────────────────────
