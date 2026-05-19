@@ -181,7 +181,7 @@ const S={
   showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
   sq:"",dvMsg:"",dvLoad:false,pMsg:"",
   apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false,
-  vnListening:false,vnShowAll:false
+  vnListening:false,vnShowAll:false,vnEditTs:null
 };
 function set(p){Object.assign(S,p);render();}
 
@@ -629,15 +629,27 @@ function buildVoiceNotes(clientId){
     visible.forEach(n=>{
       const d=new Date(n.ts);
       const label=d.toLocaleDateString("fr-FR")+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-      h+=`<div style="background:#070d1a;border:1px solid #1a3356;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      const editing=S.vnEditTs===n.ts;
+      if(editing){
+        h+=`<div style="background:#070d1a;border:1px solid #38bdf8;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+  <div style="font-size:10px;color:#475569;margin-bottom:6px">${label}</div>
+  <textarea id="vnEditArea_${n.ts}" style="width:100%;min-height:80px;font-size:13px;line-height:1.5;margin-bottom:8px">${e(n.text)}</textarea>
+  <div class="row">
+    <button class="btn btn-ok" style="flex:1;margin-bottom:0;padding:8px" onclick="vnSaveEdit('${clientId}',${n.ts})">✓ Sauvegarder</button>
+    <button class="btn-g" style="flex:1;margin-bottom:0;padding:8px" onclick="set({vnEditTs:null})">Annuler</button>
+  </div>
+</div>`;
+      }else{
+        h+=`<div style="background:#070d1a;border:1px solid #1a3356;border-radius:10px;padding:10px 12px;margin-bottom:8px">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-    <div>
+    <div style="flex:1;cursor:pointer" onclick="set({vnEditTs:${n.ts}})">
       <div style="font-size:10px;color:#475569;margin-bottom:4px">${label}</div>
       <div style="font-size:13px;line-height:1.5;color:#e2e8f0">${e(n.text)}</div>
     </div>
     <button onclick="vnDelete('${clientId}',${n.ts})" style="background:none;border:none;color:#475569;font-size:14px;cursor:pointer;flex-shrink:0;margin-top:1px">🗑</button>
   </div>
 </div>`;
+      }
     });
     if(notes.length>5){
       if(show5){
@@ -795,6 +807,19 @@ window.vnStart=function(clientId){
 };
 window.vnStop=function(){
   if(_vnRecog)try{_vnRecog.stop();}catch{}
+};
+window.vnSaveEdit=function(clientId,ts){
+  const ta=document.getElementById("vnEditArea_"+ts);
+  if(!ta)return;
+  const newText=ta.value.trim();
+  if(!newText)return;
+  const vnDb=vnLoad();
+  if(vnDb[clientId]){
+    const n=vnDb[clientId].find(n=>n.ts===ts);
+    if(n)n.text=newText;
+    vnSave(vnDb);
+  }
+  set({vnEditTs:null});
 };
 window.vnDelete=function(clientId,ts){
   const vnDb=vnLoad();
