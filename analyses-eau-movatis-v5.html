@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="theme-color" content="#070d1a"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Analyses eau"/>
+<title>Analyses d'eau Movatis</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:#070d1a;}
+body{font-family:'DM Sans','Segoe UI',sans-serif;color:#e2e8f0;overscroll-behavior:none;}
+#app{max-width:480px;margin:0 auto;min-height:100vh;}
+select,input,textarea,button{font-family:inherit;}
+select option{background:#0d1f3c;color:#e2e8f0;}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+input[inputmode=decimal]{-webkit-appearance:none;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:#070d1a;}
+::-webkit-scrollbar-thumb{background:#1a3356;border-radius:4px;}
+.screen{min-height:100vh;padding-bottom:60px;}
+.hdr{background:linear-gradient(135deg,#070d1a 0%,#0d2240 100%);padding:18px 18px 14px;border-bottom:1px solid #1a3356;position:sticky;top:0;z-index:10;}
+.hdr-logo{font-size:18px;font-weight:800;color:#38bdf8;letter-spacing:-.5px;}
+.hdr-sub{font-size:11px;color:#475569;margin-top:2px;}
+.hdr-back{background:none;border:none;color:#38bdf8;font-size:13px;cursor:pointer;padding:0;margin-bottom:4px;display:block;}
+.pad{padding:16px;}
+.card{background:#0d1f3c;border-radius:14px;padding:15px 16px;margin-bottom:12px;border:1px solid #1a3356;}
+.btn{background:#38bdf8;color:#070d1a;border:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-bottom:8px;display:block;text-align:center;}
+.btn:disabled{opacity:.5;}
+.btn-g{background:transparent;color:#38bdf8;border:1px solid #38bdf8;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-bottom:8px;display:block;text-align:center;}
+.btn-hth{background:linear-gradient(135deg,#1e3a5f,#0e2a4a);color:#7dd3fc;border:1px solid #2563eb;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;width:100%;text-align:center;display:block;}
+.btn-sm{background:#0a1628;color:#e2e8f0;border:1px solid #1a3356;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-bottom:8px;text-align:left;display:block;}
+.btn-sm.sel{background:#0d2240;color:#38bdf8;border-color:#38bdf8;font-weight:700;}
+.btn-ok{background:#22c55e;color:#fff;}
+input[type=text],input[type=number],select,textarea{background:#070d1a;border:1px solid #1a3356;border-radius:10px;padding:11px 14px;font-size:14px;color:#e2e8f0;width:100%;margin-bottom:10px;outline:none;}
+.inp-ok{border-color:#166534!important;}
+.inp-w{border-color:#92400e!important;}
+.inp-e{border-color:#7f1d1d!important;}
+textarea{resize:none;line-height:1.6;}
+.lbl{font-size:12px;color:#64748b;margin-bottom:4px;display:block;}
+.sec{font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;margin-top:4px;}
+.warn-box{background:#450a0a33;border:1px solid #7f1d1d;border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:#fca5a5;}
+.row{display:flex;gap:8px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.drv-box{background:#0a1628;border:1px solid #1a3356;border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
+.sheet{background:#0d1f3c;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:20px 16px 40px;border:1px solid #1a3356;}
+.empty{text-align:center;color:#334155;margin-top:40px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{color:#475569;font-weight:600;padding-bottom:6px;font-size:12px;}
+td{padding:6px 0;}
+tr{border-bottom:1px solid #0a1628;}
+.prog-bar{background:#070d1a;border-radius:8px;height:6px;overflow:hidden;}
+.prog-fill{background:#38bdf8;height:100%;transition:width .3s;}
+.badge{font-size:9px;color:#7dd3fc;margin-left:6px;background:#0d2a50;border-radius:4px;padding:1px 5px;}
+.stat{border-radius:10px;padding:10px 8px;text-align:center;}
+.stat .n{font-size:22px;font-weight:800;}
+.stat .l{font-size:10px;color:#475569;margin-top:2px;}
+@keyframes vnblink{0%,100%{opacity:1;}50%{opacity:0;}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SK="movatis_v3";
+const DEMO={};
+const PRODS={RITOCAL_GR:{n:"RITOCAL GR",r:"PM-531"},ACTIBON:{n:"ACTIBON SHOCK",r:"PM-420"},ALGIKLEAN:{n:"ALGIKLEAN",r:"PM-634"},ALGI_YELLOW:{n:"ALGI-YELLOW",r:"PM-654"},PH_MOINS:{n:"pH MOINS",r:"PM-601"},TAC_PLUS:{n:"TAC PLUS",r:"PM-612"},STABILISANT:{n:"STABILISANT",r:"PM-401"},PHOS_OUT:{n:"PHOS-OUT",r:"PM-625"},BIOFILM_OUT:{n:"BIOFILM OUT",r:"PM-630"},ULTRA_CLEAR:{n:"ULTRA CLEAR",r:"PM-643"},ION_MAGNETIC:{n:"ION MAGNETIC",r:"PM-615"},STICKS_CTX:{n:"Sticks chlore non stabilisé",r:"CTX-123"},CELNET:{n:"CELNET",r:"PM-142"}};
+const PR={FCL:{min:1,max:3,u:"mg/L",lb:"Chlore Libre"},TCL:{min:1,max:3.6,u:"mg/L",lb:"Chlore Total"},pH:{min:7,max:7.4,u:"",lb:"pH"},TAC:{min:80,max:180,u:"mg/L",lb:"TAC / ALK"},TH:{min:150,max:350,u:"mg/L",lb:"TH / HARD"},CYA:{min:20,max:40,u:"mg/L",lb:"CYA (Stab.)"},Fe:{min:0,max:0.2,u:"mg/L",lb:"Fer / IRON"},Cu:{min:0,max:0.1,u:"mg/L",lb:"Cuivre / COPPER"},Phos:{min:0,max:100,u:"ppb",lb:"Phosphates / PHOS"}};
+const PKS=Object.keys(PR);
+const ML={chlore_non_stab:"Sticks non stab.",chlore_stab:"Chlore stab.",electrolyseur:"Électrolyse",uv:"UV",brome:"Brome"};
+const COL={FCL:"#38bdf8",TCL:"#818cf8",pH:"#4ade80",TAC:"#fb923c",TH:"#f472b6",CYA:"#facc15",Fe:"#f87171",Cu:"#a78bfa",Phos:"#34d399"};
+
+function lsLoad(){try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r);}catch{}localStorage.setItem(SK,JSON.stringify(DEMO));return JSON.parse(JSON.stringify(DEMO));}
+function lsSave(d){try{localStorage.setItem(SK,JSON.stringify(d));}catch{}}
+
+function dot(v,k){
+  if(v===""||v===null||v===undefined)return"⚪";
+  const r=PR[k];if(!r)return"⚪";
+  const n=parseFloat(v);if(isNaN(n))return"⚪";
+  if(n>=r.min&&n<=r.max)return"🟢";
+  const p=(r.max-r.min)*.25||.5;
+  if((n>=r.min-p&&n<r.min)||(n>r.max&&n<=r.max+p))return"🟠";
+  return"🔴";
+}
+function inpCls(v,k){if(!v)return"";const d=dot(v,k);return d==="🟢"?"inp-ok":d==="🟠"?"inp-w":"inp-e";}
+
+function calcLSI(pH,TH,TAC,t=28){
+  if(!pH||!TH||!TAC)return null;
+  const f=t<=15?.5:t<=20?.6:t<=25?.7:.8;
+  return(parseFloat(pH)-(12.1-Math.log10(parseFloat(TH))-Math.log10(parseFloat(TAC))-f)).toFixed(2);
+}
+
+function buildPres(vals,vol,mode,aspect,algM){
+  const at=[],ac=[],pr={},wa=[];
+  const fcl=parseFloat(vals.FCL)||0,ph=parseFloat(vals.pH)||0,tac=parseFloat(vals.TAC)||0,th=parseFloat(vals.TH)||0,cya=parseFloat(vals.CYA),phos=parseFloat(vals.Phos)||0;
+  const cc=(parseFloat(vals.TCL)||0)-fcl;
+  const isV=aspect==="verte_légère"||aspect==="verte_dense";
+  const isD=aspect==="verte_dense"||aspect==="noire_marron";
+  if(cc>0.6)wa.push("⚠️ Chlore combiné > 0,6 mg/L — traitement choc obligatoire");
+  if(isD){
+    at.push("Laver le filtre AVANT tout traitement");at.push("Brosser les parois");
+    pr.BIOFILM_OUT=Math.round(vol*5)+" mL";at.push("BIOFILM OUT → "+pr.BIOFILM_OUT);
+    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push("RITOCAL GR → "+pr.RITOCAL_GR+" — répartir plan d'eau, filtration en marche");}
+    pr.ACTIBON=Math.round(vol*10)+" mL";at.push("ACTIBON SHOCK → "+pr.ACTIBON+" (×2) — soirée");
+    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push("ALGIKLEAN → "+pr.ALGIKLEAN+" — filtration en marche");
+    pr.ULTRA_CLEAR=Math.round(vol*10)+" mL";at.push("ULTRA CLEAR → "+pr.ULTRA_CLEAR);
+    ac.push("Filtration 24h/24 pendant 48–72h");ac.push("Laver le filtre à nouveau 24h après");ac.push("Ne pas baigner tant que l'eau n'est pas claire");ac.push("Ne pas poser les sticks avant eau claire + conditions OK");
+    if(mode==="electrolyseur"){ac.push("Ne pas remettre l'électrolyseur avant eau claire + pH 7,0–7,4 + TAC > 80");wa.push("⚠️ Électrolyseur : proposer CELNET");pr.CELNET="Selon encrassement";}
+  }else if(aspect==="verte_légère"){
+    at.push("Brosser les parois");
+    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push("RITOCAL GR → "+pr.RITOCAL_GR);}
+    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push("ALGIKLEAN → "+pr.ALGIKLEAN+" — filtration en marche");
+    pr.ACTIBON=Math.round(vol*5)+" mL";at.push("ACTIBON SHOCK → "+pr.ACTIBON+" — soirée");
+    ac.push("Laver filtre 24h après");ac.push("Filtration 24h/24 pendant 48h");ac.push("Ne pas baigner — FCL ≥ 1 mg/L + eau claire requis");
+  }
+  if(algM){pr.ALGI_YELLOW=Math.round(vol*10)+" mL";at.push("ALGI-YELLOW → "+pr.ALGI_YELLOW+" — surchloration cible 5 mg/L");wa.push("⚠️ Algues moutarde : surchloration 5 mg/L requise");}
+  if(ph>(isV?6.9:7.5)&&ph>0){const d=Math.round(vol*10*((ph-(isV?6.8:7.2))/0.3));pr.PH_MOINS=d+" g";at.push("pH MOINS PM-601 → "+d+" g — 10g/m³ par -0,3 unité, en 3 fois, filtration 1h après");}
+  if(tac>0&&tac<80){
+    if(ph<6.3)wa.push("🔴 pH < 6,3 — NE PAS ajouter TAC PLUS. Corriger pH d'abord.");
+    else{const dl=80-tac,d=Math.round(dl*vol*1.7);pr.TAC_PLUS=d+" g";at.push("TAC PLUS → "+d+" g"+(dl>20?" (correction massive)":""));if(dl>30){ac.push("Filtration 24h/24 pendant la correction TAC");ac.push("Couper la régulation pH automatique");wa.push("⚠️ Correction TAC massive — filtration 24h + couper régulation pH auto");}}
+  }
+  if(th>0&&th<150)wa.push("⚠️ TH < 150 mg/L — eau agressive.");
+  if(!isNaN(cya)){if(cya<20){const d=Math.round((30-cya)*vol*1);pr.STABILISANT=d+" g";at.push("STABILISANT PM-401 → "+d+" g — 10g/m³ par +10ppm, 48h pour agir — prévenir client");wa.push("⚠️ CYA < 20 mg/L — STABILISANT obligatoire. Met 48h à agir.");}else if(cya>60)wa.push("⚠️ CYA > 60 mg/L — surveiller, risque blocage chlore.");}
+  if(phos>100){const d=phos<=200?Math.round(vol*3):phos<=500?Math.round(vol*6):phos<=1000?Math.round(vol*12):Math.round(vol*24);pr.PHOS_OUT=d+" mL";at.push("PHOS-OUT → "+d+" mL — traiter AVANT l'algicide");wa.push("⚠️ Phosphates > 100 ppb — PHOS-OUT avant algicide");}
+  if((parseFloat(vals.Fe)||0)>0.2||(parseFloat(vals.Cu)||0)>0.1){pr.ION_MAGNETIC="À évaluer";wa.push("⚠️ Métaux détectés — ION MAGNETIC recommandé");}
+  if(aspect==="claire"&&mode!=="electrolyseur"){const n=Math.ceil(vol/20);pr.STICKS_CTX=n+" stick(s) / 5 jours";at.push("Poser "+n+" stick(s) skimmer — film intact, panier propre");}
+  if(mode==="electrolyseur"&&fcl<0.5&&!pr.RITOCAL_GR){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push("RITOCAL GR → "+pr.RITOCAL_GR+" — amorçage électrolyseur");wa.push("⚠️ Électrolyseur : amorcer RITOCAL GR avant remise en route");}
+  return{actions_tech:at,actions_client:ac,products:pr,warnings:wa};
+}
+
+// ── CLAUDE API ────────────────────────────────────
+async function claude(messages,max=600){
+  if(!S.apiKey){throw new Error("Clé API manquante — configure-la dans ⚙️ Paramètres");}
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":S.apiKey},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:max,messages})});
+  if(!r.ok){const t=await r.text().catch(()=>"");throw new Error(`API ${r.status}: ${t.slice(0,120)}`);}
+  const d=await r.json();
+  if(d.error)throw new Error(d.error.message||"Erreur API Claude");
+  const raw=d.content?.find(b=>b.type==="text")?.text||"{}";
+  try{return JSON.parse(raw.replace(/```json|```/g,"").trim());}catch{return{};}
+}
+async function readPhoto(b64,mime){return claude([{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:'Analyse cette image de test d\'eau de piscine. Il peut s\'agir d\'une BANDELETTE colorimétrique (Hach, Bayrol, AquaChek, Marina...) tenue devant son flacon avec l\'échelle de référence, ou d\'un PHOTOMÈTRE numérique (PoolLab, Scuba II, eXact...), ou d\'un comparateur liquide.\n\nPOUR UNE BANDELETTE : compare soigneusement les couleurs de chaque plage de la bandelette avec l\'échelle imprimée sur le flacon. Chaque plage correspond à un paramètre. La lecture est approximative — retourne la valeur de l\'échelle la plus proche de la couleur observée.\n\nJSON STRICT uniquement, aucun texte avant ou après :\n{"FCL":null,"TCL":null,"pH":null,"TAC":null,"TH":null,"CYA":null,"Fe":null,"Cu":null,"Phos":null}\n\nCorrespondances : FCL=Free Chlorine/Chlore Libre(mg/L), TCL=Total Chlorine(mg/L), pH=valeur pH, TAC=Alkalinity/Alcalinité(ppm), TH=Hardness/TH(ppm), CYA=Stabilizer/Stabilisant(ppm), Fe=Iron/Fer(mg/L), Cu=Copper/Cuivre(mg/L), Phos=Phosphates(ppb). Nombres uniquement, null si absent ou illisible.'}]}],500);}
+async function readHTH(b64){return claude([{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:'Rapport HTH Test\'O Pro. Extrais UNIQUEMENT les valeurs mesurées (pas les idéales). JSON STRICT:\n{"clientName":null,"date":null,"TAC":null,"pH":null,"CYA":null,"FCL":null,"CCL":null,"salt":null,"TH":null,"Cu":null,"Fe":null,"Phos":null,"volume":null,"mode":null}\nclientName=nom client, date=JJ/MM/AAAA, TAC=ALK, FCL=F Cl (chlore libre), CCL=chlore combiné, TH=HARD, Cu=COPPER, Fe=IRON, Phos=PHOS(ppb), volume=m³, mode="electrolyseur"/"chlore_non_stab"/"chlore_stab"/"brome"/"uv"/null. Ne pas extraire les recommandations HTH.'}]}],600);}
+
+// ── EXPORT / IMPORT JSON (remplace Drive) ─────────
+function exportJSON(){
+  const data=JSON.stringify(S.clients,null,2);
+  const blob=new Blob([data],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const d=new Date();
+  const stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  a.href=url;a.download="movatis_backup_"+stamp+".json";
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+  set({dvMsg:"✅ Fichier téléchargé — movatis_backup_"+stamp+".json"});
+}
+function importJSON(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(typeof data!=="object"||Array.isArray(data))throw new Error("Format invalide");
+      lsSave(data);
+      set({clients:data,dvMsg:"✅ "+Object.keys(data).length+" client(s) restauré(s)"});
+    }catch{set({dvMsg:"❌ Fichier invalide — vérifiez qu'il s'agit d'un backup Movatis"});}
+  };
+  reader.readAsText(file);
+}
+
+// ── ÉTAT ──────────────────────────────────────────
+const S={
+  screen:"home",clients:{},sel:null,pres:null,
+  vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},
+  aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",
+  showHTH:false,hthStep:"upload",hthRes:[],hthProg:{c:0,t:0},hthDone:{i:0,s:0},
+  showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
+  sq:"",dvMsg:"",dvLoad:false,pMsg:"",
+  apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false,
+  vnListening:false,vnShowAll:false
+};
+function set(p){Object.assign(S,p);render();}
+
+// ── UTILS HTML ────────────────────────────────────
+function e(s){if(!s&&s!==0)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function j(o){return JSON.stringify(o).replace(/</g,"\\u003c").replace(/"/g,"&quot;");}
+
+function spark(data,color,w=180,h=44,tMin=null,tMax=null){
+  if(!data||data.length<2)return"<span style='color:#555;font-size:11px'>—</span>";
+  const vs=data.map(d=>parseFloat(d)||0);
+  const allV=[...vs];if(tMin!==null)allV.push(tMin);if(tMax!==null)allV.push(tMax);
+  const mn=Math.min(...allV),mx=Math.max(...allV),rng=mx-mn||1;
+  const pad=3;
+  function yp(v){return h-((v-mn)/rng)*(h-pad*2)-pad;}
+  const pts=vs.map((v,i)=>`${(i/(vs.length-1))*w},${yp(v)}`).join(" ");
+  const zone=(tMin!==null&&tMax!==null)?`<rect x="0" y="${yp(tMax)}" width="${w}" height="${Math.abs(yp(tMin)-yp(tMax))}" fill="#22c55e14" rx="2"/>` :"";
+  const lMin=tMin!==null?`<line x1="0" y1="${yp(tMin)}" x2="${w}" y2="${yp(tMin)}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.75"/><text x="${w+4}" y="${yp(tMin)+4}" font-size="8" fill="#22c55e" opacity="0.9">${tMin}</text>`:"";
+  const lMax=tMax!==null?`<line x1="0" y1="${yp(tMax)}" x2="${w}" y2="${yp(tMax)}" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3" opacity="0.75"/><text x="${w+4}" y="${yp(tMax)+4}" font-size="8" fill="#22c55e" opacity="0.9">${tMax}</text>`:"";
+  return`<svg width="${w+32}" height="${h}" style="overflow:visible">${zone}${lMin}${lMax}<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>${vs.map((v,i)=>{const x=(i/(vs.length-1))*w,y=yp(v);return`<circle cx="${x}" cy="${y}" r="2.5" fill="${color}"/>`;}).join("")}</svg>`;
+}
+
+// ── RENDER ────────────────────────────────────────
+function render(){
+  const app=document.getElementById("app");
+  if(!app)return;
+  app.innerHTML=buildAll();
+  if(S.showHTH)document.body.style.overflow="hidden";
+  else document.body.style.overflow="";
+}
+
+function buildAll(){
+  const {screen,clients,sel,pres,showHTH}=S;
+  const client=sel?clients[sel]:null;
+  const analyses=client?.analyses||[];
+  let h=showHTH?buildHTH():"";
+  if(screen==="home")h+=buildHome();
+  else if(screen==="client"&&client)h+=buildClient(client,analyses);
+  else if(screen==="analyse"&&client)h+=buildAnalyse(client);
+  else if(screen==="ordonnance"&&pres&&client)h+=buildOrd(pres,client);
+  else if(screen==="history"&&client)h+=buildHist(client,analyses);
+  return h;
+}
+
+// ── SETTINGS ──────────────────────────────────────
+function buildSettings(){
+  return`<div class="card" style="border-color:#2563eb;margin-bottom:12px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="sec" style="margin:0">⚙️ Clé API Anthropic</div>
+    <button onclick="set({showSettings:false})" style="background:none;border:none;color:#475569;cursor:pointer;font-size:16px">✕</button>
+  </div>
+  <div style="font-size:12px;color:#475569;margin-bottom:8px">Votre clé API commence par <b style="color:#7dd3fc">sk-ant-</b> — trouvez-la sur <b>console.anthropic.com</b></div>
+  <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." value="${e(S.apiKey)}" style="margin-bottom:8px;font-family:monospace;font-size:12px"/>
+  <div class="row">
+    <button class="btn btn-ok" style="flex:1;margin-bottom:0" onclick="saveApiKey()">💾 Enregistrer</button>
+    ${S.apiKey?`<button class="btn-g" style="flex:1;margin-bottom:0;color:#f87171;border-color:#f87171" onclick="clearApiKey()">🗑️ Effacer</button>`:""}
+  </div>
+  <div style="font-size:10px;color:#334155;margin-top:8px">La clé est stockée localement dans votre navigateur, jamais envoyée ailleurs.</div>
+</div>`;
+}
+
+// ── HOME ──────────────────────────────────────────
+function buildHome(){
+  const {clients,sq,showAdd,nName,nVol,nMode,dvMsg}=S;
+  const filtered=Object.entries(clients).filter(([,c])=>c.name.toLowerCase().includes(sq.toLowerCase())).sort(([,a],[,b])=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'}));
+  let h=`<div class="screen">
+<div class="hdr">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <div class="hdr-logo">💧 Analyses d'eau Movatis</div>
+      <div class="hdr-sub">Assistant traitement eau — Jean-François Morette</div>
+    </div>
+    <button onclick="set({showSettings:true})" style="background:${S.apiKey?"#0d2a1a":"#3a1a0a"};border:1px solid ${S.apiKey?"#166534":"#7f3d1d"};border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;color:${S.apiKey?"#4ade80":"#fb923c"};flex-shrink:0;margin-top:2px">${S.apiKey?"⚙️ API ✓":"⚙️ API !"}</button>
+  </div>
+</div>
+<div class="pad">
+  ${S.showSettings?buildSettings():""}
+  ${!S.apiKey?`<div class="warn-box" style="cursor:pointer" onclick="set({showSettings:true})">⚙️ Clé API Anthropic requise — appuye ici pour la configurer</div>`:""}
+
+  <div class="card" style="background:linear-gradient(135deg,#0a1e3d,#0d2a50);border-color:#2563eb;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="font-size:22px">📄</div>
+      <div><div style="font-weight:700;font-size:14px;color:#7dd3fc">Import HTH Test'O Pro</div><div style="font-size:11px;color:#475569">Import PDF · multi-fichiers · doublons ignorés</div></div>
+    </div>
+    <button class="btn-hth" onclick="openHTH()">📄 Importer des PDF HTH</button>
+  </div>
+
+  <div class="drv-box">
+    <div class="sec" style="margin-bottom:8px">💾 Sauvegarde locale</div>
+    <div style="font-size:12px;color:#475569;margin-bottom:10px">Exporte tes données en JSON sur ton téléphone, restaure-les à tout moment.</div>
+    <div class="row">
+      <button class="btn" style="flex:1;font-size:13px;margin-bottom:0" onclick="exportJSON()">⬇️ Exporter</button>
+      <label class="btn-g" style="flex:1;font-size:13px;margin-bottom:0;cursor:pointer;text-align:center;padding:10px 18px">
+        ⬆️ Restaurer
+        <input type="file" accept="application/json" style="display:none" onchange="importJSON(this.files[0]);this.value=''"/>
+      </label>
+    </div>
+    ${dvMsg?`<p style="font-size:12px;margin-top:8px;margin-bottom:0;color:${dvMsg.startsWith("✅")?"#4ade80":dvMsg.startsWith("❌")?"#f87171":"#94a3b8"}">${e(dvMsg)}</p>`:""}
+  </div>
+
+  <input type="text" placeholder="🔍 Rechercher un client…" value="${e(sq)}" oninput="set({sq:this.value})" style="margin-bottom:12px"/>`;
+
+  if(showAdd){
+    h+=`<div class="card">
+  <div class="sec">Nouveau client</div>
+  <label class="lbl">Nom</label><input type="text" placeholder="Ex: Famille Dupont" value="${e(nName)}" oninput="setTextField('nName',this)"/>
+  <label class="lbl">Volume (m³)</label><input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="Ex: 50" value="${e(nVol)}" oninput="setDecimalField('nVol',this)"/>
+  <label class="lbl">Mode de désinfection</label>
+  <select onchange="set({nMode:this.value})">
+    ${["chlore_non_stab","chlore_stab","electrolyseur","uv","brome"].map(m=>`<option value="${m}"${nMode===m?" selected":""}>${ML[m]}</option>`).join("")}
+  </select>
+  <div class="row">
+    <button class="btn" style="flex:1;margin-bottom:0" onclick="addClient()">✅ Enregistrer</button>
+    <button class="btn-g" style="flex:1;margin-bottom:0" onclick="set({showAdd:false})">Annuler</button>
+  </div>
+</div>`;
+  }else{
+    h+=`<button class="btn" onclick="set({showAdd:true})">+ Nouveau client</button>`;
+  }
+
+  if(!filtered.length&&!showAdd)h+=`<div class="empty"><div style="font-size:48px">🏊</div><p style="font-size:13px;margin-top:8px">Aucun client</p></div>`;
+
+  filtered.forEach(([id,c])=>{
+    const last=c.analyses?.length?c.analyses[c.analyses.length-1]:null;
+    h+=`<div class="card" style="cursor:pointer" onclick="goClient('${id}')">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-weight:700;font-size:15px">${e(c.name)}</div>
+      <div style="font-size:12px;color:#475569;margin-top:2px">${c.vol} m³ · ${e(ML[c.mode]||c.mode)}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:11px;color:#334155">${c.analyses?.length||0} analyse(s)</div>
+      ${last?`<div style="font-size:10px;color:#475569">${last.date}</div>`:""}
+      ${c.analyses?.some(a=>a.sourceHTH)?`<div style="font-size:9px;color:#7dd3fc;margin-top:1px">HTH ●</div>`:""}
+    </div>
+  </div>
+</div>`;
+  });
+  h+=`</div></div>`;
+  return h;
+}
+
+// ── CLIENT ────────────────────────────────────────
+function buildClient(client,analyses){
+  const last=analyses.length?analyses[analyses.length-1]:null;
+  let h=`<div class="screen">
+<div class="hdr">
+  <button class="hdr-back" onclick="set({screen:'home',sel:null})">← Clients</button>
+  <div class="hdr-logo">${e(client.name)}</div>
+  <div class="hdr-sub">${client.vol} m³ · ${e(ML[client.mode]||client.mode)}</div>
+</div>
+<div class="pad">
+  <button class="btn" onclick="goAnalyse()">🔬 Nouvelle analyse</button>
+  ${last?`<button class="btn-g" onclick="setPres(${j(last)})">📋 Dernière ordonnance (${last.date})${last.sourceHTH?" · HTH":""}</button>`:""}
+  ${analyses.length>=2?`<button class="btn-g" onclick="set({screen:'history'})">📈 Courbes (${analyses.length} analyses)</button>`:""}`;
+
+  if(!analyses.length){
+    h+=`<div class="card empty" style="padding:24px"><div style="font-size:36px">📊</div><p style="font-size:13px;margin-top:8px">Aucune analyse</p></div>`;
+  }else{
+    h+=`<div class="card"><div class="sec">Historique</div>`;
+    [...analyses].sort((a,b)=>a.ts-b.ts).slice(-6).forEach((a,i,arr)=>{
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:8px;${i<arr.length-1?"border-bottom:1px solid #1a3356":""};cursor:pointer" onclick="setPres(${j(a)})">
+  <div>
+    <div style="font-size:13px;font-weight:600">${a.date}${a.sourceHTH?`<span class="badge">HTH</span>`:""}</div>
+    <div style="font-size:11px;color:#475569">${(a.aspect||"").replace("_"," ")} · pH ${a.vals.pH||"—"} · FCL ${a.vals.FCL||"—"}</div>
+  </div>
+  <div style="color:#38bdf8;font-size:11px">→</div>
+</div>`;
+    });
+    h+=`</div>`;
+  }
+  h+=buildVoiceNotes(S.sel);
+  h+=`</div></div>`;
+  return h;
+}
+
+// ── ANALYSE ───────────────────────────────────────
+function buildAnalyse(client){
+  const {vals,aspect,algM,pMsg,filtreLave,filtrationMode}=S;
+  let h=`<div class="screen">
+<div class="hdr">
+  <button class="hdr-back" onclick="set({screen:'client'})">← ${e(client.name)}</button>
+  <div class="hdr-logo">🔬 Analyse — ${client.vol} m³</div>
+</div>
+<div class="pad">
+  <div class="card" style="border-color:#164e63">
+    <div class="sec">📷 Lire le photomètre automatiquement</div>
+    <input type="file" id="pFileCamera" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)"/>
+    <input type="file" id="pFileGallery" accept="image/*" style="display:none" onchange="onPhoto(this)"/>
+    <div class="row">
+      <button class="btn" style="background:#0e7490;color:#e2e8f0;margin-bottom:6px;flex:1" onclick="document.getElementById('pFileCamera').click()">📷 Prendre une photo</button>
+      <button class="btn" style="background:#0a3d5c;color:#e2e8f0;margin-bottom:6px;flex:1" onclick="document.getElementById('pFileGallery').click()">🖼️ Importer une image</button>
+    </div>
+    ${pMsg?`<p style="font-size:12px;color:${pMsg.startsWith("✅")?"#4ade80":pMsg.startsWith("❌")?"#f87171":"#94a3b8"};margin:4px 0 0">${e(pMsg)}</p>`:""}
+  </div>
+  <div class="card">
+    <div class="sec">Valeurs — vérifier ou saisir</div>
+    <div class="g2">`;
+
+  PKS.forEach(k=>{
+    const r=PR[k];
+    h+=`<div><label class="lbl">${r.lb}${r.u?" ("+r.u+")":""}</label><input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" class="${inpCls(vals[k],k)}" placeholder="—" value="${e(vals[k])}" oninput="setVDecimal('${k}',this)"/></div>`;
+  });
+
+  h+=`</div></div>
+  <div class="card">
+    <div class="sec">Aspect de l'eau</div>
+    ${[["claire","✅ Claire"],["verte_légère","🟡 Verte légère (fond visible)"],["verte_dense","🔴 Verte dense (fond invisible)"],["noire_marron","⚫ Noire / Marron"]].map(([v,l])=>`<button class="btn-sm${aspect===v?" sel":""}" onclick="set({aspect:'${v}'})">${l}</button>`).join("")}
+    <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+      <input type="checkbox" id="algC" ${algM?"checked":""} style="width:18px;height:18px;accent-color:#38bdf8" onchange="set({algM:this.checked})"/>
+      <label for="algC" style="font-size:13px;cursor:pointer">Algues moutarde (taches jaunes/brunes)</label>
+    </div>
+    <div style="margin-top:12px;padding:12px 14px;background:#0a1e38;border-radius:10px;border:1px solid #1e4976">
+      <div class="sec" style="margin-bottom:8px;margin-top:0">⚙️ Filtration</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn-sm${filtrationMode==="habituel"?" sel":""}" style="flex:1;margin-bottom:0" onclick="set({filtrationMode:'habituel'})">Programme habituel</button>
+        <button class="btn-sm${filtrationMode==="manuel"?" sel":""}" style="flex:1;margin-bottom:0" onclick="set({filtrationMode:'manuel'})">Manuel 24h/24</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+        <input type="checkbox" id="filtreC" ${filtreLave?"checked":""} style="width:18px;height:18px;accent-color:#38bdf8;flex-shrink:0" onchange="set({filtreLave:this.checked})"/>
+        <label for="filtreC" style="font-size:13px;cursor:pointer;line-height:1.4">🔧 <strong>Filtre nettoyé sur place</strong></label>
+      </div>
+    </div>
+  </div>
+  <button class="btn" onclick="saveAnalyse()">✅ Générer l'ordonnance</button>
+</div></div>`;
+  return h;
+}
+
+// ── ORDONNANCE ────────────────────────────────────
+function buildOrd(p,client){
+  const L=calcLSI(p.vals.pH,p.vals.TH,p.vals.TAC);
+  const lC=!L?"#94a3b8":parseFloat(L)<-0.3?"#f87171":parseFloat(L)>0.3?"#fb923c":"#4ade80";
+  const lL=!L?"—":parseFloat(L)<-0.3?"Eau agressive":parseFloat(L)>0.3?"Eau incrustante":"Eau équilibrée";
+  const isVert=p.aspect==="verte_légère"||p.aspect==="verte_dense"||p.aspect==="noire_marron";
+  const mailReleves=Object.entries(PR).filter(([k])=>p.vals[k]).map(([k,r])=>{
+    const v=p.vals[k],d=dot(v,k);
+    const ic=d==="🟢"?"🟢":d==="🟠"?"🟠":"🔴";
+    const st=d==="🟢"?"✓":d==="🟠"?"à corriger":"hors cible";
+    const lb=(r.lb+" ").padEnd(20,"·");
+    return`${ic} ${lb}: ${v}${r.u?" "+r.u:""}   (cible ${r.min}–${r.max}${r.u?" "+r.u:""})  ${st}`;
+  }).join("\n");
+  const sectionFait=p.filtreLave
+    ?`━━━ 🔧 CE QUE NOUS AVONS FAIT ━━━━━━━\n\n• Analyse complète de l'eau\n• Traitement correctif effectué sur place\n• Filtre nettoyé lors de notre intervention\n\n`
+    :`━━━ 🔧 CE QUE NOUS AVONS FAIT ━━━━━━━\n\n• Analyse complète de l'eau\n• Traitement correctif effectué sur place\n\n`;
+  const ligneFiltre=isVert?`⚠️  FILTRE — Relaver impérativement le filtre 24h après notre passage puis dans 48h se référer au manomètre\n\n`:``;
+  const ligneFiltration=(p.filtrationMode==="manuel")
+    ?`⚙️  FILTRATION — Laisser tourner en manuel 24h/24 jusqu'à ce que l'eau s'éclaircisse\n\n`
+    :`⚙️  FILTRATION — Reprendre le programme habituel\n\n`;
+  const excl=["filtre","filtration","ne pas baigner","ne pas poser les sticks","ne pas remettre l'électrolyseur","redox"];
+  const actClient=p.pres.actions_client.filter(a=>!excl.some(x=>a.toLowerCase().includes(x))).map((a,i)=>`${i+1}️⃣  ${a}`).join("\n");
+  const actVertes=isVert?`1️⃣  Ne pas baigner tant que l'eau n'est pas claire\n2️⃣  Ne pas poser les sticks avant eau claire + conditions OK${client.mode==="electrolyseur"?"\n3️⃣  Ne pas remettre l'électrolyseur avant eau claire + pH 7,0–7,4 + TAC > 80":""}\n\n`:``;
+  const ligneCtrl=isVert?`📅  Refaire une mesure dans 48h et reprendre le traitement normal\n\n`:``;
+  const mail=`Bonjour,\n\nSuite à notre passage du ${p.date}, voici le bilan de votre piscine (${client.vol} m³).\n\n━━━ 📊 RELEVÉS DU JOUR ━━━━━━━━━━━━━━\n\n${mailReleves}\n\n${sectionFait}━━━ ✅ VOS ACTIONS DANS LES 48H ━━━━━\n\n${ligneFiltre}${ligneFiltration}${actVertes}${actClient?actClient+"\n\n":""}${ligneCtrl}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nN'hésitez pas à nous contacter pour toute question.\n\nCordialement,`;
+
+  let h=`<div class="screen">
+<div class="hdr">
+  <button class="hdr-back" onclick="set({screen:'client'})">← ${e(client.name)}</button>
+  <div class="hdr-logo">📋 Ordonnance</div>
+  <div class="hdr-sub">${p.date} · ${client.vol} m³ · ${(p.aspect||"").replace("_"," ")}${p.sourceHTH?" · HTH":""}</div>
+</div>
+<div class="pad">`;
+
+  if(p.sourceHTH)h+=`<div class="card" style="background:#0d2a50;border-color:#2563eb;font-size:12px;color:#7dd3fc;margin-bottom:12px">📄 Analyse importée depuis HTH Test'O Pro — confirmez l'aspect de l'eau sur place si besoin</div>`;
+  p.pres.warnings.forEach(w=>h+=`<div class="warn-box">${e(w)}</div>`);
+
+  h+=`<div class="card"><div class="sec">Relevés</div><table>
+<thead><tr style="border-bottom:1px solid #1a3356"><th style="text-align:left">Paramètre</th><th style="text-align:center">Mesuré</th><th style="text-align:center">Cible</th><th style="text-align:center">Statut</th></tr></thead>
+<tbody>`;
+  PKS.forEach(k=>{if(p.vals[k])h+=`<tr><td style="font-size:12px">${PR[k].lb}</td><td style="text-align:center;font-weight:700">${p.vals[k]}${PR[k].u?" "+PR[k].u:""}</td><td style="text-align:center;font-size:11px;color:#475569">${PR[k].min}–${PR[k].max}</td><td style="text-align:center;font-size:18px">${dot(p.vals[k],k)}</td></tr>`;});
+  h+=`</tbody></table></div>`;
+
+  h+=`<div class="card" style="display:flex;justify-content:space-between;align-items:center">
+  <div><div class="sec" style="margin-bottom:0">Indice LSI</div><div style="font-size:11px;color:#475569;margin-top:4px">${lL}</div></div>
+  <div style="font-size:28px;font-weight:800;color:${lC}">${L||"—"}</div>
+</div>`;
+
+  if(p.pres.actions_tech.length){
+    h+=`<div class="card"><div class="sec">🔧 Actions technicien</div>`;
+    p.pres.actions_tech.forEach((a,i)=>h+=`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="background:#38bdf8;color:#070d1a;border-radius:6px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px">${i+1}</div><div style="font-size:13px;line-height:1.5">${e(a)}</div></div>`);
+    h+=`</div>`;
+  }
+  if(p.pres.actions_client.length){
+    h+=`<div class="card" style="border-color:#1a4d2b"><div class="sec">📋 Actions client</div>`;
+    p.pres.actions_client.forEach(a=>h+=`<div style="display:flex;gap:10px;margin-bottom:8px"><div style="color:#4ade80;font-size:16px;flex-shrink:0;margin-top:1px">›</div><div style="font-size:13px;line-height:1.5">${e(a)}</div></div>`);
+    h+=`</div>`;
+  }
+  if(Object.keys(p.pres.products).length){
+    h+=`<div class="card" style="background:#080f20"><div class="sec">🚛 Récap camion</div><table>
+<thead><tr style="border-bottom:1px solid #1a3356"><th style="text-align:left">Produit</th><th style="text-align:right">Quantité</th></tr></thead><tbody>`;
+    Object.entries(p.pres.products).forEach(([k,q])=>h+=`<tr><td style="padding:7px 0"><div style="font-weight:600">${e(PRODS[k]?.n||k)}</div><div style="font-size:10px;color:#334155">${e(PRODS[k]?.r||"")}</div></td><td style="text-align:right;font-weight:700;color:#38bdf8">${e(q)}</td></tr>`);
+    h+=`</tbody></table></div>`;
+  }
+  if(client.mode!=="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact<br>• pH 7,0–7,4 · TAC 80–180 · CYA 20–40 mg/L</div></div>`;
+  if(client.mode==="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Électrolyseur</div><div style="font-size:13px;line-height:1.9">• Redox 650–750 mV — production 30–40%<br>• pH 7,0–7,4 · TAC 80–180 · CYA 20–40 mg/L</div></div>`;
+  h+=`<div class="card"><div class="sec">✉️ Mail client</div>
+<textarea id="mailTxt" readonly style="height:220px;font-size:11px;font-family:monospace;line-height:1.6">${e(mail)}</textarea>
+<button class="btn" onclick="copyMail()">📋 Copier le mail</button>
+</div>
+<button class="btn-g" onclick="set({screen:'client'})">← Retour fiche client</button>
+</div></div>`;
+  return h;
+}
+
+// ── HISTORY ───────────────────────────────────────
+function buildHist(client,analyses){
+  let h=`<div class="screen">
+<div class="hdr">
+  <button class="hdr-back" onclick="set({screen:'client'})">← ${e(client.name)}</button>
+  <div class="hdr-logo">📈 Évolution</div>
+  <div class="hdr-sub">${analyses.length} analyses · ${analyses[0]?.date} → ${analyses[analyses.length-1]?.date}</div>
+</div>
+<div class="pad">`;
+  PKS.forEach(k=>{
+    const sa=[...analyses].sort((a,b)=>a.ts-b.ts);const pts=sa.map(a=>a.vals[k]).filter(v=>v!==""&&v!==undefined&&v!==null);
+    if(!pts.length)return;
+    const last=pts[pts.length-1];
+    h+=`<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div><span style="font-weight:700;font-size:14px">${PR[k].lb}</span><span style="font-size:11px;color:#475569;margin-left:6px">${PR[k].u}</span></div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="font-weight:800;font-size:16px;color:${COL[k]}">${last}</span><span style="font-size:18px">${dot(last,k)}</span></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end">
+    ${spark(pts,COL[k],180,44,PR[k].min,PR[k].max)}
+    <div style="font-size:10px;color:#334155;text-align:right">${sa.filter(a=>a.vals[k]).map(a=>`<div>${a.date}: <b style="color:${COL[k]}">${a.vals[k]}</b></div>`).join("")}</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:10px;color:#334155;margin-top:6px"><span>Min : ${PR[k].min}</span><span>Max : ${PR[k].max}</span></div>
+</div>`;
+  });
+  h+=`<button class="btn-g" onclick="set({screen:'client'})">← Retour</button></div></div>`;
+  return h;
+}
+
+// ── HTH MODAL ─────────────────────────────────────
+function buildHTH(){
+  const {hthStep,hthProg,hthRes,hthDone,clients}=S;
+  const ok=hthRes.filter(r=>r.status==="ok").length;
+  const dup=hthRes.filter(r=>r.status==="doublon").length;
+  const err=hthRes.filter(r=>r.status==="error").length;
+  let inner="";
+  if(hthStep==="upload"){
+    inner=`<div style="background:#070d1a;border:2px dashed #1e4976;border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer" onclick="document.getElementById('hthF').click()">
+  <div style="font-size:40px;margin-bottom:8px">📄</div>
+  <div style="color:#38bdf8;font-weight:700;font-size:14px">Sélectionner un ou plusieurs PDF</div>
+  <div style="color:#475569;font-size:12px;margin-top:4px">Rapports HTH Test'O Pro</div>
+</div>
+<input type="file" id="hthF" accept="application/pdf" multiple style="display:none" onchange="onHTH(this)"/>`;
+  }
+  if(hthStep==="processing"){
+    const pct=hthProg.t?Math.round(hthProg.c/hthProg.t*100):0;
+    inner=`<div style="text-align:center;padding:24px 0">
+  <div style="font-size:36px;margin-bottom:12px">⏳</div>
+  <div style="color:#38bdf8;font-weight:700;font-size:15px;margin-bottom:6px">Analyse IA en cours…</div>
+  <div style="color:#475569;font-size:13px;margin-bottom:16px">PDF ${hthProg.c} / ${hthProg.t}</div>
+  <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+</div>`;
+  }
+  if(hthStep==="results"){
+    inner=`<div class="g3" style="margin-bottom:14px">
+  <div class="stat" style="background:#0a2a1a;border:1px solid #166534"><div class="n" style="color:#4ade80">${ok}</div><div class="l">À importer</div></div>
+  <div class="stat" style="background:#1a2a0a;border:1px solid #3a4a1a"><div class="n" style="color:#facc15">${dup}</div><div class="l">Doublons</div></div>
+  <div class="stat" style="background:#2a0a0a;border:1px solid #7f1d1d"><div class="n" style="color:#f87171">${err}</div><div class="l">Erreurs</div></div>
+</div>`;
+    hthRes.forEach((r,idx)=>{
+      const bc=r.status==="doublon"?"#3a4a1a":r.status==="error"?"#7f1d1d":"#1e4976";
+      const sc=r.status==="ok"?"#4ade80":r.status==="doublon"?"#facc15":"#f87171";
+      const sl=r.status==="ok"?"✅ OK":r.status==="doublon"?"⚠️ Doublon":"❌ Erreur";
+      inner+=`<div style="background:#070d1a;border-radius:12px;padding:12px 14px;margin-bottom:10px;border:1px solid ${bc}">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${r.parsed?6:0}px">
+    <div style="font-size:11px;color:#64748b;flex:1;margin-right:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e(r.fileName)}</div>
+    <div style="font-size:11px;font-weight:700;color:${sc};flex-shrink:0">${sl}</div>
+  </div>`;
+      if(r.status==="error")inner+=`<div style="font-size:11px;color:#f87171">${e(r.error)}</div>`;
+      if(r.parsed){
+        const mc=r.clientId?clients[r.clientId]:null;
+        inner+=`<div style="font-weight:700;font-size:14px;color:#e2e8f0">${e(r.parsed.clientName||"—")}</div>
+<div style="font-size:11px;color:#475569;margin-top:2px">${e(r.parsed.date||"?")} · ${r.parsed.volume?r.parsed.volume+" m³ · ":""}FCL ${r.parsed.FCL??""} · pH ${r.parsed.pH??""} · TAC ${r.parsed.TAC??""} · Phos ${r.parsed.Phos??""}</div>`;
+        if(r.status==="doublon")inner+=`<div style="font-size:11px;color:#facc15;margin-top:4px">Analyse du ${e(r.parsed.date)} déjà présente — ignorée</div>`;
+        if(r.status==="ok"){
+          if(mc&&!r.createNew){
+            inner+=`<div style="font-size:11px;color:#4ade80;margin-top:4px">→ ${e(mc.name)} (${mc.vol} m³) <button onclick="hthCreate(${idx},true)" style="background:none;border:none;color:#475569;font-size:10px;cursor:pointer;margin-left:4px">Changer →</button></div>`;
+          }else{
+            inner+=`<div style="margin-top:8px"><div style="font-size:10px;color:#fb923c;font-weight:700;margin-bottom:6px">⚠️ Nouveau client — volume requis</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+  <div><div style="font-size:10px;color:#64748b;margin-bottom:3px">Volume m³</div><input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="Ex: 50" value="${e(r.newVol)}" style="padding:7px 10px;font-size:12px;margin-bottom:0" oninput="hthVol(${idx},this.value)"/></div>
+  <div><div style="font-size:10px;color:#64748b;margin-bottom:3px">Mode</div>
+    <select style="padding:7px 10px;font-size:11px;margin-bottom:0" onchange="hthMode(${idx},this.value)">
+      ${["chlore_non_stab","chlore_stab","electrolyseur","uv","brome"].map(m=>`<option value="${m}"${r.newMode===m?" selected":""}>${ML[m]}</option>`).join("")}
+    </select>
+  </div>
+</div></div>`;
+          }
+        }
+      }
+      inner+=`</div>`;
+    });
+    if(ok>0)inner+=`<button class="btn btn-ok" onclick="confirmHTH()">✅ Importer ${ok} analyse${ok>1?"s":""}${dup>0?" · "+dup+" doublon"+(dup>1?"s":"")+" ignoré"+(dup>1?"s":""):""}</button>`;
+    else inner+=`<div style="text-align:center;color:#475569;font-size:13px;padding:12px 0">${dup?"Toutes les analyses sont déjà présentes.":"Aucune analyse valide."}</div>`;
+    inner+=`<button class="btn-g" onclick="set({hthStep:'upload',hthRes:[]})">← Charger d'autres PDF</button>`;
+  }
+  if(hthStep==="done"){
+    inner=`<div style="text-align:center;padding:20px 0">
+  <div style="font-size:48px;margin-bottom:12px">✅</div>
+  <div style="color:#4ade80;font-weight:700;font-size:16px;margin-bottom:6px">Import terminé</div>
+  <div style="color:#e2e8f0;font-size:14px;margin-bottom:4px">${hthDone.i} analyse${hthDone.i>1?"s":""} importée${hthDone.i>1?"s":""}</div>
+  ${hthDone.s?`<div style="color:#475569;font-size:12px;margin-bottom:16px">${hthDone.s} ignorée${hthDone.s>1?"s":""} (doublons / erreurs)</div>`:""}
+  <button class="btn" onclick="closeHTH()">Voir les clients →</button>
+</div>`;
+  }
+  return`<div class="overlay"><div class="sheet">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div><div style="font-weight:800;font-size:16px;color:#e2e8f0">📄 Import HTH Test'O</div><div style="font-size:11px;color:#475569;margin-top:2px">Valeurs brutes · Multi-PDF · Doublons ignorés</div></div>
+  <button onclick="closeHTH()" style="background:#1a3356;border:none;color:#94a3b8;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">✕</button>
+</div>
+${inner}
+</div></div>`;
+}
+
+// ── VOICE NOTES (dictée → texte) ──────────────────
+const VN_SK="movatis_vn";
+function vnLoad(){try{const r=localStorage.getItem(VN_SK);return r?JSON.parse(r):{}}catch{return {};}}
+function vnSave(d){try{localStorage.setItem(VN_SK,JSON.stringify(d));}catch{}}
+
+function buildVoiceNotes(clientId){
+  const vnDb=vnLoad();
+  const notes=(vnDb[clientId]||[]).slice().sort((a,b)=>b.ts-a.ts);
+  const show5=!S.vnShowAll;
+  const visible=show5?notes.slice(0,5):notes;
+  const listening=S.vnListening;
+  let h=`<div class="card" style="border-color:#1a4060">
+<div class="sec">🎙️ Notes de visite</div>`;
+
+  if(!listening){
+    h+=`<button class="btn" style="background:#0e4f6e;color:#e2e8f0;margin-bottom:10px" onclick="vnStart('${clientId}')">🎙️ Dicter une note</button>`;
+  }else{
+    h+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;background:#0a1628;border:1px solid #ef4444;border-radius:10px;padding:10px 14px">
+  <div style="width:10px;height:10px;background:#ef4444;border-radius:50%;animation:vnblink 1s infinite;flex-shrink:0"></div>
+  <div style="flex:1;font-size:13px;color:#fca5a5">Dictée en cours… parlez</div>
+  <button onclick="vnStop()" style="background:#ef4444;border:none;color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">⏹ Stop</button>
+</div>`;
+  }
+
+  if(!visible.length){
+    h+=`<div style="font-size:12px;color:#334155;text-align:center;padding:6px 0">Aucune note</div>`;
+  }else{
+    visible.forEach(n=>{
+      const d=new Date(n.ts);
+      const label=d.toLocaleDateString("fr-FR")+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+      h+=`<div style="background:#070d1a;border:1px solid #1a3356;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+    <div>
+      <div style="font-size:10px;color:#475569;margin-bottom:4px">${label}</div>
+      <div style="font-size:13px;line-height:1.5;color:#e2e8f0">${e(n.text)}</div>
+    </div>
+    <button onclick="vnDelete('${clientId}',${n.ts})" style="background:none;border:none;color:#475569;font-size:14px;cursor:pointer;flex-shrink:0;margin-top:1px">🗑</button>
+  </div>
+</div>`;
+    });
+    if(notes.length>5){
+      if(show5){
+        h+=`<button class="btn-g" style="font-size:12px;padding:7px 14px;margin-bottom:0" onclick="set({vnShowAll:true})">Voir ${notes.length-5} note(s) plus ancienne(s)</button>`;
+      }else{
+        h+=`<button class="btn-g" style="font-size:12px;padding:7px 14px;margin-bottom:0" onclick="set({vnShowAll:false})">Réduire</button>`;
+      }
+    }
+  }
+  h+=`</div>`;
+  return h;
+}
+
+// ── HANDLERS ──────────────────────────────────────
+window.set=set;
+window.exportJSON=exportJSON;
+window.importJSON=importJSON;
+window.saveApiKey=()=>{
+  const k=document.getElementById("apiKeyInput")?.value?.trim();
+  if(!k)return;
+  localStorage.setItem("movatis_apikey",k);
+  set({apiKey:k,showSettings:false});
+};
+window.clearApiKey=()=>{
+  localStorage.removeItem("movatis_apikey");
+  set({apiKey:"",showSettings:false});
+};
+window.goClient=id=>set({sel:id,screen:"client",pres:null,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+window.goAnalyse=()=>set({screen:"analyse",vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+window.setPres=p=>set({screen:"ordonnance",pres:p});
+window.setDecimalField=function(key,input){Object.assign(S,{[key]:input.value});};
+window.setVDecimal=function(key,input){S.vals={...S.vals,[key]:input.value};};
+window.setTextField=function(key,input){Object.assign(S,{[key]:input.value});};
+window.copyMail=()=>{const t=document.getElementById("mailTxt");if(t)navigator.clipboard?.writeText(t.value);};
+
+window.addClient=()=>{
+  if(!S.nName.trim()||!S.nVol)return;
+  const id=S.nName.trim().toLowerCase().replace(/\s+/g,"_")+"_"+Date.now();
+  const clients={...S.clients,[id]:{name:S.nName.trim(),vol:parseFloat(S.nVol),mode:S.nMode,analyses:[]}};
+  lsSave(clients);set({clients,sel:id,screen:"client",showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab"});
+};
+
+window.saveAnalyse=()=>{
+  const {sel,clients,vals,aspect,algM}=S;
+  const c=clients[sel];
+  const pres=buildPres(vals,c.vol,c.mode,aspect,algM);
+  const entry={date:new Date().toLocaleDateString("fr-FR"),ts:Date.now(),vals:{...vals},aspect,algMoutarde:algM,filtreLave:S.filtreLave,filtrationMode:S.filtrationMode,pres};
+  const updated={...clients,[sel]:{...c,analyses:[...(c.analyses||[]),entry]}};
+  lsSave(updated);set({clients:updated,pres:entry,screen:"ordonnance"});
+};
+
+window.onPhoto=async function(input){
+  const file=input.files?.[0];if(!file)return;
+  set({pMsg:"📷 Lecture du photomètre en cours…"});
+  try{
+    const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);});
+    const parsed=await readPhoto(b64,file.type||"image/jpeg");
+    const vals={...S.vals};
+    PKS.forEach(k=>{if(parsed[k]!=null)vals[k]=String(parsed[k]);});
+    set({vals,pMsg:`✅ ${Object.values(parsed).filter(v=>v!==null).length} valeur(s) extraite(s) — vérifie et complète si besoin`});
+  }catch(err){set({pMsg:"❌ "+( err?.message||"Erreur lecture — saisis manuellement")});}
+  input.value="";
+};
+
+window.openHTH=()=>set({showHTH:true,hthStep:"upload",hthRes:[]});
+window.closeHTH=()=>set({showHTH:false});
+window.hthCreate=(i,v)=>{const r=[...S.hthRes];r[i]={...r[i],createNew:v};set({hthRes:r});};
+window.hthVol=(i,v)=>{const r=[...S.hthRes];r[i]={...r[i],newVol:v};set({hthRes:r});};
+window.hthMode=(i,v)=>{const r=[...S.hthRes];r[i]={...r[i],newMode:v};set({hthRes:r});};
+
+function findCli(name){
+  if(!name)return null;
+  const n=name.toLowerCase().trim();
+  const f=Object.entries(S.clients).find(([,c])=>c.name.toLowerCase()===n||c.name.toLowerCase().includes(n)||n.includes(c.name.toLowerCase()));
+  return f?f[0]:null;
+}
+function isDup(id,date){
+  if(!id||!date)return false;
+  return(S.clients[id]?.analyses||[]).some(a=>a.date===date);
+}
+
+window.onHTH=async function(input){
+  const files=Array.from(input.files||[]).filter(f=>f.type==="application/pdf");
+  if(!files.length)return;
+  set({hthStep:"processing",hthProg:{c:0,t:files.length}});
+  const results=[];
+  for(let i=0;i<files.length;i++){
+    set({hthProg:{c:i+1,t:files.length}});
+    try{
+      const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(files[i]);});
+      const p=await readHTH(b64);
+      if(!p||(!p.clientName&&!p.FCL&&!p.pH)){results.push({fileName:files[i].name,parsed:null,status:"error",error:"Lecture impossible"});continue;}
+      p.TCL=Math.round(((parseFloat(p.FCL)||0)+(parseFloat(p.CCL)||0))*100)/100;
+      const cid=findCli(p.clientName);
+      const dup=isDup(cid,p.date);
+      results.push({fileName:files[i].name,parsed:p,status:dup?"doublon":"ok",clientId:cid||null,createNew:!cid,newVol:p.volume?String(p.volume):"",newMode:p.mode||"chlore_non_stab"});
+    }catch(err){
+      const msg=err?.message?.includes("fetch")||err?.message?.includes("network")?"Erreur réseau — vérifie ta connexion":"Erreur technique ("+( err?.message||"inconnue")+")";
+      results.push({fileName:files[i].name,parsed:null,status:"error",error:msg});
+    }
+  }
+  set({hthRes:results,hthStep:"results"});
+  input.value="";
+};
+
+window.confirmHTH=function(){
+  let upd={...S.clients};let i=0,s=0;
+  S.hthRes.forEach(r=>{
+    if(r.status!=="ok"||!r.parsed){s++;return;}
+    const p=r.parsed;
+    const vals={FCL:p.FCL!=null?String(p.FCL):"",TCL:p.TCL!=null?String(p.TCL):"",pH:p.pH!=null?String(p.pH):"",TAC:p.TAC!=null?String(p.TAC):"",TH:p.TH!=null?String(p.TH):"",CYA:p.CYA!=null?String(p.CYA):"",Fe:p.Fe!=null?String(p.Fe):"",Cu:p.Cu!=null?String(p.Cu):"",Phos:p.Phos!=null?String(p.Phos):""};
+    const date=p.date||new Date().toLocaleDateString("fr-FR");
+    const pName=(p.clientName||'').toLowerCase().trim();
+    let tid=pName?Object.entries(upd).find(([,c])=>c.name.toLowerCase().trim()===pName)?.[0]:r.clientId;
+    if(!tid){
+      const id=(p.clientName||"nouveau").toLowerCase().replace(/[^a-z0-9]/g,"_")+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,4);
+      upd[id]={name:p.clientName||"Client HTH",vol:parseFloat(r.newVol)||parseFloat(p.volume)||0,mode:r.newMode||"chlore_non_stab",analyses:[]};
+      tid=id;
+    }
+    const pres=buildPres(vals,upd[tid].vol,upd[tid].mode,"claire",false);
+    upd[tid]={...upd[tid],analyses:[...(upd[tid].analyses||[]),{date,ts:Date.now(),vals,aspect:"claire",algMoutarde:false,pres,sourceHTH:true}]};
+    i++;
+  });
+  lsSave(upd);
+  set({clients:upd,hthStep:"done",hthDone:{i,s}});
+};
+
+let _vnRecog=null;
+window.vnStart=function(clientId){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert("Reconnaissance vocale non supportée sur ce navigateur.");return;}
+  const r=new SR();
+  r.lang="fr-FR";
+  r.continuous=true;
+  r.interimResults=false;
+  let transcript="";
+  r.onresult=ev=>{
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      if(ev.results[i].isFinal)transcript+=ev.results[i][0].transcript+" ";
+    }
+  };
+  r.onerror=()=>{set({vnListening:false});};
+  r.onend=()=>{
+    if(transcript.trim()){
+      const vnDb=vnLoad();
+      if(!vnDb[clientId])vnDb[clientId]=[];
+      vnDb[clientId].push({ts:Date.now(),text:transcript.trim()});
+      vnSave(vnDb);
+    }
+    set({vnListening:false});
+  };
+  r.start();
+  _vnRecog=r;
+  set({vnListening:true});
+};
+window.vnStop=function(){
+  if(_vnRecog)try{_vnRecog.stop();}catch{}
+};
+window.vnDelete=function(clientId,ts){
+  const vnDb=vnLoad();
+  if(vnDb[clientId])vnDb[clientId]=vnDb[clientId].filter(n=>n.ts!==ts);
+  vnSave(vnDb);
+  render();
+};
+
+// ── SERVICE WORKER PWA ────────────────────────────
+if("serviceWorker"in navigator){
+  const sw=[
+    'const C="movatis-v1";',
+    'const SKIP=["api.anthropic.com","googleapis.com","gstatic.com"];',
+    'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll([self.location.href])).catch(()=>{}));});',
+    'self.addEventListener("activate",e=>e.waitUntil(clients.claim()));',
+    'self.addEventListener("fetch",e=>{',
+    '  const url=e.request.url;',
+    '  if(SKIP.some(d=>url.includes(d)))return;',
+    '  if(e.request.method!=="GET")return;',
+    '  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{',
+    '    if(res&&res.ok){const cl=res.clone();caches.open(C).then(c=>c.put(e.request,cl));}',
+    '    return res;',
+    '  }).catch(()=>fetch(e.request))));',
+    '});'
+  ].join("\n");
+  const swUrl=URL.createObjectURL(new Blob([sw],{type:"text/javascript"}));
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+
+// ── INIT ──────────────────────────────────────────
+S.clients=lsLoad();
+render();
+</script>
+</body>
+</html>
