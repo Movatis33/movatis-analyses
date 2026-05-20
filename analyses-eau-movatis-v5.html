@@ -165,6 +165,7 @@ function importJSON(file){
     try{
       const data=JSON.parse(e.target.result);
       if(typeof data!=="object"||Array.isArray(data))throw new Error("Format invalide");
+      if(Object.keys(S.clients).length>0&&!confirm(`Cela va remplacer ${Object.keys(S.clients).length} client(s) existant(s). Confirmer ?`))return;
       lsSave(data);
       set({clients:data,dvMsg:"✅ "+Object.keys(data).length+" client(s) restauré(s)"});
     }catch{set({dvMsg:"❌ Fichier invalide — vérifiez qu'il s'agit d'un backup Movatis"});}
@@ -179,7 +180,7 @@ const S={
   aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",
   showHTH:false,hthStep:"upload",hthRes:[],hthProg:{c:0,t:0},hthDone:{i:0,s:0},
   showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
-  showEditClient:false,eVol:"",eMode:"",
+  showEditClient:false,eVol:"",eMode:"",eName:"",
   sq:"",dvMsg:"",dvLoad:false,pMsg:"",
   apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false,
   vnListening:false,vnShowAll:false,vnEditTs:null
@@ -327,15 +328,16 @@ function buildHome(){
 // ── CLIENT ────────────────────────────────────────
 function buildClient(client,analyses){
   const last=analyses.length?analyses[analyses.length-1]:null;
-  const {showEditClient,eVol,eMode}=S;
+  const {showEditClient,eVol,eMode,eName}=S;
   let h=`<div class="screen">
 <div class="hdr">
   <button class="hdr-back" onclick="set({screen:'home',sel:null,showEditClient:false})">← Clients</button>
   <div class="hdr-logo">${e(client.name)}</div>
   ${showEditClient?`
   <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
-    <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="Volume m³" value="${e(eVol)}" oninput="setDecimalField('eVol',this)" style="width:90px;padding:6px 10px;font-size:13px;margin-bottom:0"/>
-    <select onchange="set({eMode:this.value})" style="flex:1;padding:6px 10px;font-size:13px;margin-bottom:0">
+    <input type="text" placeholder="Nom" value="${e(eName)}" oninput="setTextField('eName',this)" style="flex:2;min-width:100px;padding:6px 10px;font-size:13px;margin-bottom:0"/>
+    <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="m³" value="${e(eVol)}" oninput="setDecimalField('eVol',this)" style="width:70px;padding:6px 10px;font-size:13px;margin-bottom:0"/>
+    <select onchange="set({eMode:this.value})" style="flex:1;min-width:120px;padding:6px 10px;font-size:13px;margin-bottom:0">
       ${["chlore_non_stab","chlore_stab","electrolyseur","uv","brome"].map(m=>`<option value="${m}"${(eMode||client.mode)===m?" selected":""}>${ML[m]}</option>`).join("")}
     </select>
     <button onclick="saveClientInfo()" class="btn" style="width:auto;padding:6px 14px;font-size:13px;margin-bottom:0">✓</button>
@@ -344,7 +346,7 @@ function buildClient(client,analyses){
   `:`
   <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
     <div class="hdr-sub" style="margin-top:0">${client.vol} m³ · ${e(ML[client.mode]||client.mode)}</div>
-    <button onclick="set({showEditClient:true,eVol:'${client.vol}',eMode:'${client.mode}'})" style="background:none;border:none;color:#64748b;font-size:14px;cursor:pointer;padding:0;line-height:1" title="Modifier">✏️</button>
+    <button onclick="set({showEditClient:true,eVol:'${client.vol}',eMode:'${client.mode}',eName:'${e(client.name)}'})" style="background:none;border:none;color:#64748b;font-size:14px;cursor:pointer;padding:0;line-height:1" title="Modifier">✏️</button>
   </div>
   `}
 </div>
@@ -353,17 +355,22 @@ function buildClient(client,analyses){
   ${last?`<button class="btn-g" onclick="setPres(${j(last)})">📋 Dernière ordonnance (${last.date})${last.sourceHTH?" · HTH":""}</button>`:""}
   ${analyses.length>=2?`<button class="btn-g" onclick="set({screen:'history'})">📈 Courbes (${analyses.length} analyses)</button>`:""}`;
 
+  h+=`<button class="btn-g" style="color:#f87171;border-color:#7f1d1d;margin-top:4px" onclick="deleteClient('${S.sel}')">🗑 Supprimer ce client</button>`;
+
   if(!analyses.length){
     h+=`<div class="card empty" style="padding:24px"><div style="font-size:36px">📊</div><p style="font-size:13px;margin-top:8px">Aucune analyse</p></div>`;
   }else{
     h+=`<div class="card"><div class="sec">Historique</div>`;
     [...analyses].sort((a,b)=>a.ts-b.ts).slice(-6).forEach((a,i,arr)=>{
-      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:8px;${i<arr.length-1?"border-bottom:1px solid #1a3356":""};cursor:pointer" onclick="setPres(${j(a)})">
-  <div>
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:8px;${i<arr.length-1?"border-bottom:1px solid #1a3356":""}">
+  <div style="flex:1;cursor:pointer" onclick="setPres(${j(a)})">
     <div style="font-size:13px;font-weight:600">${a.date}${a.sourceHTH?`<span class="badge">HTH</span>`:""}</div>
     <div style="font-size:11px;color:#94a3b8">${(a.aspect||"").replace("_"," ")} · pH ${a.vals.pH||"—"} · FCL ${a.vals.FCL||"—"}</div>
   </div>
-  <div style="color:#38bdf8;font-size:11px">→</div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button onclick="deleteAnalyse('${S.sel}',${a.ts})" style="background:none;border:none;color:#475569;font-size:16px;cursor:pointer;padding:2px 4px" title="Supprimer">🗑</button>
+    <div style="color:#38bdf8;font-size:11px;cursor:pointer" onclick="setPres(${j(a)})">→</div>
+  </div>
 </div>`;
     });
     h+=`</div>`;
@@ -495,6 +502,7 @@ function buildOrd(p,client){
   h+=`<div class="card"><div class="sec">✉️ Mail client</div>
 <textarea id="mailTxt" readonly style="height:220px;font-size:11px;font-family:monospace;line-height:1.6">${e(mail)}</textarea>
 <button class="btn" onclick="copyMail()">📋 Copier le mail</button>
+<button class="btn-g" onclick="shareMail()" style="margin-top:0">↗ Partager</button>
 </div>
 <button class="btn-g" onclick="set({screen:'client'})">← Retour fiche client</button>
 </div></div>`;
@@ -696,12 +704,30 @@ window.clearApiKey=()=>{
 window.goClient=id=>set({sel:id,screen:"client",pres:null,showEditClient:false,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
 window.saveClientInfo=()=>{
   const id=S.sel;if(!id||!S.clients[id])return;
-  const vol=parseFloat(S.eVol.replace(",","."));
+  const vol=parseFloat(String(S.eVol).replace(",","."));
   if(isNaN(vol)||vol<=0)return;
+  const name=S.eName.trim()||S.clients[id].name;
   const upd={...S.clients};
-  upd[id]={...upd[id],vol,mode:S.eMode||upd[id].mode};
+  upd[id]={...upd[id],vol,mode:S.eMode||upd[id].mode,name};
   lsSave(upd);
   set({clients:upd,showEditClient:false});
+};
+window.deleteClient=(id)=>{
+  if(!confirm(`Supprimer définitivement ce client et toutes ses analyses ?`))return;
+  const upd={...S.clients};delete upd[id];
+  lsSave(upd);set({clients:upd,sel:null,screen:"home"});
+};
+window.deleteAnalyse=(clientId,ts)=>{
+  if(!confirm(`Supprimer cette analyse ?`))return;
+  const upd={...S.clients};
+  upd[clientId]={...upd[clientId],analyses:(upd[clientId].analyses||[]).filter(a=>a.ts!==ts)};
+  lsSave(upd);set({clients:upd});
+};
+window.shareMail=()=>{
+  const t=document.getElementById("mailTxt");
+  if(!t)return;
+  if(navigator.share){navigator.share({text:t.value}).catch(()=>{});}
+  else{navigator.clipboard?.writeText(t.value);alert("Mail copié dans le presse-papiers");}
 };
 window.goAnalyse=()=>set({screen:"analyse",vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
 window.setPres=p=>set({screen:"ordonnance",pres:p});
@@ -719,6 +745,11 @@ window.addClient=()=>{
 
 window.saveAnalyse=()=>{
   const {sel,clients,vals,aspect,algM}=S;
+  const missing=[];
+  if(!vals.pH) missing.push("pH");
+  if(!vals.TAC) missing.push("TAC");
+  if(!vals.FCL) missing.push("Chlore Libre");
+  if(missing.length&&!confirm(`Attention : ${missing.join(", ")} non renseigné(s). Continuer quand même ?`))return;
   const c=clients[sel];
   const pres=buildPres(vals,c.vol,c.mode,aspect,algM);
   const entry={date:new Date().toLocaleDateString("fr-FR"),ts:Date.now(),vals:{...vals},aspect,algMoutarde:algM,filtreLave:S.filtreLave,filtrationMode:S.filtrationMode,pres};
@@ -735,7 +766,7 @@ window.onPhoto=async function(input){
     const vals={...S.vals};
     PKS.forEach(k=>{if(parsed[k]!=null)vals[k]=String(parsed[k]);});
     set({vals,pMsg:`✅ ${Object.values(parsed).filter(v=>v!==null).length} valeur(s) extraite(s) — vérifie et complète si besoin`});
-  }catch(err){set({pMsg:"❌ "+( err?.message||"Erreur lecture — saisis manuellement")});}
+  }catch(err){set({pMsg:"❌ "+(err?.message?.includes("Clé API")?"Clé API manquante — configure-la dans ⚙️":err?.message||"Erreur lecture — saisis manuellement")});}
   input.value="";
 };
 
