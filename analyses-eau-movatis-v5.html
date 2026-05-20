@@ -75,7 +75,16 @@ const ML={chlore_non_stab:"Sticks non stab.",chlore_stab:"Chlore stab.",electrol
 const COL={FCL:"#38bdf8",TCL:"#818cf8",pH:"#4ade80",TAC:"#fb923c",TH:"#f472b6",CYA:"#facc15",Fe:"#f87171",Cu:"#a78bfa",Phos:"#34d399"};
 
 function lsLoad(){try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r);}catch{}localStorage.setItem(SK,JSON.stringify(DEMO));return JSON.parse(JSON.stringify(DEMO));}
-function lsSave(d){try{localStorage.setItem(SK,JSON.stringify(d));}catch{}}
+function lsSave(d){
+  try{
+    localStorage.setItem(SK,JSON.stringify(d));
+  }catch(err){
+    if(err.name==="QuotaExceededError"||err.code===22){
+      set({dvMsg:"⚠️ Stockage plein ! Exportez vos données immédiatement puis supprimez des entrées."});
+      alert("⚠️ Stockage local plein !\n\nVos données ne peuvent plus être sauvegardées.\n→ Exportez le fichier JSON depuis l'accueil, puis supprimez quelques analyses anciennes.");
+    }
+  }
+}
 
 function dot(v,k){
   if(v===""||v===null||v===undefined)return"⚪";
@@ -156,7 +165,8 @@ function exportJSON(){
   a.href=url;a.download="movatis_backup_"+stamp+".json";
   document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
-  set({dvMsg:"✅ Fichier téléchargé — movatis_backup_"+stamp+".json"});
+  localStorage.setItem("movatis_last_export",stamp);
+  set({dvMsg:"✅ Fichier téléchargé — movatis_backup_"+stamp+".json",exportAlert:false});
 }
 function importJSON(file){
   if(!file)return;
@@ -181,7 +191,7 @@ const S={
   showHTH:false,hthStep:"upload",hthRes:[],hthProg:{c:0,t:0},hthDone:{i:0,s:0},
   showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
   showEditClient:false,eVol:"",eMode:"",eName:"",
-  sq:"",dvMsg:"",dvLoad:false,pMsg:"",
+  sq:"",dvMsg:"",dvLoad:false,pMsg:"",exportAlert:false,
   apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false,
   vnListening:false,vnShowAll:false,vnEditTs:null
 };
@@ -244,10 +254,14 @@ function buildSettings(){
 </div>`;
 }
 
-// ── HOME ──────────────────────────────────────────
 function buildHome(){
-  const {clients,sq,showAdd,nName,nVol,nMode,dvMsg}=S;
+  const {clients,sq,showAdd,nName,nVol,nMode,dvMsg,exportAlert}=S;
   const filtered=Object.entries(clients).filter(([,c])=>c.name.toLowerCase().includes(sq.toLowerCase())).sort(([,a],[,b])=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'}));
+  const today=new Date().toISOString().slice(0,10);
+  const lastExport=localStorage.getItem("movatis_last_export")||"";
+  const daysSince=lastExport?Math.floor((new Date(today)-new Date(lastExport))/(1000*60*60*24)):999;
+  const hasData=Object.keys(clients).length>0;
+  const needsExportAlert=hasData&&exportAlert&&daysSince>0;
   let h=`<div class="screen">
 <div class="hdr">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -261,6 +275,14 @@ function buildHome(){
 <div class="pad">
   ${S.showSettings?buildSettings():""}
   ${!S.apiKey?`<div class="warn-box" style="cursor:pointer" onclick="set({showSettings:true})">⚙️ Clé API Anthropic requise — appuye ici pour la configurer</div>`:""}
+  ${needsExportAlert?`<div class="warn-box" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="exportJSON()">
+    <div>
+      <div style="font-weight:700;margin-bottom:2px">💾 Sauvegarde recommandée</div>
+      <div style="font-size:12px">${daysSince>=999?"Aucun export effectué":daysSince===1?"Dernier export hier":`Dernier export il y a ${daysSince} jours`} — Appuyer pour exporter</div>
+    </div>
+    <button onclick="event.stopPropagation();set({exportAlert:false})" style="background:none;border:none;color:#fca5a5;font-size:18px;cursor:pointer;padding:0 0 0 8px">✕</button>
+  </div>`:""}
+
 
   <div class="card" style="background:linear-gradient(135deg,#0a1e3d,#0d2a50);border-color:#2563eb;margin-bottom:12px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
@@ -907,6 +929,18 @@ if("serviceWorker"in navigator){
 
 // ── INIT ──────────────────────────────────────────
 S.clients=lsLoad();
+(function checkFirstOpenToday(){
+  const today=new Date().toISOString().slice(0,10);
+  const lastOpen=localStorage.getItem("movatis_last_open")||"";
+  if(lastOpen!==today){
+    localStorage.setItem("movatis_last_open",today);
+    const lastExport=localStorage.getItem("movatis_last_export")||"";
+    const daysSince=lastExport?Math.floor((new Date(today)-new Date(lastExport))/(1000*60*60*24)):999;
+    if(daysSince>0&&Object.keys(S.clients).length>0){
+      S.exportAlert=true;
+    }
+  }
+})();
 render();
 </script>
 </body>
