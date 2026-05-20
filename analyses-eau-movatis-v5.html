@@ -62,7 +62,6 @@ tr{border-bottom:1px solid #0a1628;}
 .stat .l{font-size:11px;color:#64748b;margin-top:2px;}
 @keyframes vnblink{0%,100%{opacity:1;}50%{opacity:0;}}
 </style>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div id="app"></div>
@@ -199,20 +198,41 @@ async function exportJSON(){
   }
 }
 async function getGoogleToken(){
-  // Tente de récupérer le token via l'identity API Google
+  // Token en cache valide ?
+  if(window._gToken&&window._gTokenExp&&Date.now()<window._gTokenExp){
+    return window._gToken;
+  }
   return new Promise((resolve,reject)=>{
-    if(typeof google==="undefined"||!google.accounts||!google.accounts.oauth2){
-      reject(new Error("Google Identity Services non disponible"));return;
-    }
-    const client=google.accounts.oauth2.initTokenClient({
-      client_id:GOOGLE_CLIENT_ID,
-      scope:"https://www.googleapis.com/auth/drive.file",
-      callback:(resp)=>{
-        if(resp.error)reject(new Error(resp.error));
-        else resolve(resp.access_token);
-      }
-    });
-    client.requestAccessToken({prompt:""});
+    const redirect=encodeURIComponent(window.location.origin+window.location.pathname);
+    const url="https://accounts.google.com/o/oauth2/v2/auth"
+      +"?client_id="+encodeURIComponent(GOOGLE_CLIENT_ID)
+      +"&redirect_uri="+redirect
+      +"&response_type=token"
+      +"&scope="+encodeURIComponent("https://www.googleapis.com/auth/drive.file")
+      +"&prompt=select_account";
+    const popup=window.open(url,"_blank","width=500,height=600,left=200,top=100");
+    if(!popup){reject(new Error("Popup bloquée — autorise les popups pour ce site"));return;}
+    const timer=setInterval(()=>{
+      try{
+        const loc=popup.location.href;
+        if(loc.includes("access_token")){
+          clearInterval(timer);
+          const params=new URLSearchParams(loc.split("#")[1]||loc.split("?")[1]||"");
+          const token=params.get("access_token");
+          const exp=parseInt(params.get("expires_in")||"3600")*1000;
+          if(token){
+            window._gToken=token;
+            window._gTokenExp=Date.now()+exp-60000;
+            popup.close();
+            resolve(token);
+          }else{
+            popup.close();
+            reject(new Error("Token non reçu"));
+          }
+        }
+        if(popup.closed){clearInterval(timer);reject(new Error("Popup fermée"));}
+      }catch(e){/* cross-origin — attendre */}
+    },300);
   });
 }
 function importJSON(file){
