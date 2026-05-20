@@ -24,7 +24,7 @@ input[inputmode=decimal]{-webkit-appearance:none;}
 .screen{min-height:100vh;padding-bottom:60px;}
 .hdr{background:linear-gradient(135deg,#070d1a 0%,#0d2240 100%);padding:18px 18px 14px;border-bottom:1px solid #1a3356;position:sticky;top:0;z-index:10;}
 .hdr-logo{font-size:18px;font-weight:800;color:#38bdf8;letter-spacing:-.5px;}
-.hdr-sub{font-size:11px;color:#475569;margin-top:2px;}
+.hdr-sub{font-size:12px;color:#64748b;margin-top:2px;}
 .hdr-back{background:none;border:none;color:#38bdf8;font-size:13px;cursor:pointer;padding:0;margin-bottom:4px;display:block;}
 .pad{padding:16px;}
 .card{background:#0d1f3c;border-radius:14px;padding:15px 16px;margin-bottom:12px;border:1px solid #1a3356;}
@@ -51,15 +51,15 @@ textarea{resize:none;line-height:1.6;}
 .sheet{background:#0d1f3c;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:20px 16px 40px;border:1px solid #1a3356;}
 .empty{text-align:center;color:#334155;margin-top:40px;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
-th{color:#475569;font-weight:600;padding-bottom:6px;font-size:12px;}
+th{color:#94a3b8;font-weight:600;padding-bottom:6px;font-size:12px;}
 td{padding:6px 0;}
 tr{border-bottom:1px solid #0a1628;}
 .prog-bar{background:#070d1a;border-radius:8px;height:6px;overflow:hidden;}
 .prog-fill{background:#38bdf8;height:100%;transition:width .3s;}
-.badge{font-size:9px;color:#7dd3fc;margin-left:6px;background:#0d2a50;border-radius:4px;padding:1px 5px;}
+.badge{font-size:10px;font-weight:600;color:#7dd3fc;margin-left:6px;background:#0d2a50;border-radius:4px;padding:2px 6px;}
 .stat{border-radius:10px;padding:10px 8px;text-align:center;}
 .stat .n{font-size:22px;font-weight:800;}
-.stat .l{font-size:10px;color:#475569;margin-top:2px;}
+.stat .l{font-size:11px;color:#64748b;margin-top:2px;}
 @keyframes vnblink{0%,100%{opacity:1;}50%{opacity:0;}}
 </style>
 </head>
@@ -179,6 +179,7 @@ const S={
   aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",
   showHTH:false,hthStep:"upload",hthRes:[],hthProg:{c:0,t:0},hthDone:{i:0,s:0},
   showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
+  showEditClient:false,eVol:"",eMode:"",
   sq:"",dvMsg:"",dvLoad:false,pMsg:"",
   apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false,
   vnListening:false,vnShowAll:false,vnEditTs:null
@@ -238,7 +239,7 @@ function buildSettings(){
     <button class="btn btn-ok" style="flex:1;margin-bottom:0" onclick="saveApiKey()">💾 Enregistrer</button>
     ${S.apiKey?`<button class="btn-g" style="flex:1;margin-bottom:0;color:#f87171;border-color:#f87171" onclick="clearApiKey()">🗑️ Effacer</button>`:""}
   </div>
-  <div style="font-size:10px;color:#334155;margin-top:8px">La clé est stockée localement dans votre navigateur, jamais envoyée ailleurs.</div>
+  <div style="font-size:11px;color:#64748b;margin-top:8px">La clé est stockée localement dans votre navigateur, jamais envoyée ailleurs.</div>
 </div>`;
 }
 
@@ -309,12 +310,12 @@ function buildHome(){
   <div style="display:flex;justify-content:space-between;align-items:center">
     <div>
       <div style="font-weight:700;font-size:15px">${e(c.name)}</div>
-      <div style="font-size:12px;color:#475569;margin-top:2px">${c.vol} m³ · ${e(ML[c.mode]||c.mode)}</div>
+      <div style="font-size:12px;color:#94a3b8;margin-top:2px">${c.vol} m³ · ${e(ML[c.mode]||c.mode)}</div>
     </div>
     <div style="text-align:right">
-      <div style="font-size:11px;color:#334155">${c.analyses?.length||0} analyse(s)</div>
-      ${last?`<div style="font-size:10px;color:#475569">${last.date}</div>`:""}
-      ${c.analyses?.some(a=>a.sourceHTH)?`<div style="font-size:9px;color:#7dd3fc;margin-top:1px">HTH ●</div>`:""}
+      <div style="font-size:11px;color:#64748b">${c.analyses?.length||0} analyse(s)</div>
+      ${last?`<div style="font-size:11px;color:#94a3b8">${last.date}</div>`:""}
+      ${c.analyses?.some(a=>a.sourceHTH)?`<div style="font-size:10px;font-weight:600;color:#7dd3fc;background:#0d2a50;border-radius:4px;padding:2px 6px;display:inline-block;margin-top:2px">HTH</div>`:""}
     </div>
   </div>
 </div>`;
@@ -326,11 +327,26 @@ function buildHome(){
 // ── CLIENT ────────────────────────────────────────
 function buildClient(client,analyses){
   const last=analyses.length?analyses[analyses.length-1]:null;
+  const {showEditClient,eVol,eMode}=S;
   let h=`<div class="screen">
 <div class="hdr">
-  <button class="hdr-back" onclick="set({screen:'home',sel:null})">← Clients</button>
+  <button class="hdr-back" onclick="set({screen:'home',sel:null,showEditClient:false})">← Clients</button>
   <div class="hdr-logo">${e(client.name)}</div>
-  <div class="hdr-sub">${client.vol} m³ · ${e(ML[client.mode]||client.mode)}</div>
+  ${showEditClient?`
+  <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+    <input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="Volume m³" value="${e(eVol)}" oninput="setDecimalField('eVol',this)" style="width:90px;padding:6px 10px;font-size:13px;margin-bottom:0"/>
+    <select onchange="set({eMode:this.value})" style="flex:1;padding:6px 10px;font-size:13px;margin-bottom:0">
+      ${["chlore_non_stab","chlore_stab","electrolyseur","uv","brome"].map(m=>`<option value="${m}"${(eMode||client.mode)===m?" selected":""}>${ML[m]}</option>`).join("")}
+    </select>
+    <button onclick="saveClientInfo()" class="btn" style="width:auto;padding:6px 14px;font-size:13px;margin-bottom:0">✓</button>
+    <button onclick="set({showEditClient:false})" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;padding:0">✕</button>
+  </div>
+  `:`
+  <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+    <div class="hdr-sub" style="margin-top:0">${client.vol} m³ · ${e(ML[client.mode]||client.mode)}</div>
+    <button onclick="set({showEditClient:true,eVol:'${client.vol}',eMode:'${client.mode}'})" style="background:none;border:none;color:#64748b;font-size:14px;cursor:pointer;padding:0;line-height:1" title="Modifier">✏️</button>
+  </div>
+  `}
 </div>
 <div class="pad">
   <button class="btn" onclick="goAnalyse()">🔬 Nouvelle analyse</button>
@@ -345,7 +361,7 @@ function buildClient(client,analyses){
       h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:8px;${i<arr.length-1?"border-bottom:1px solid #1a3356":""};cursor:pointer" onclick="setPres(${j(a)})">
   <div>
     <div style="font-size:13px;font-weight:600">${a.date}${a.sourceHTH?`<span class="badge">HTH</span>`:""}</div>
-    <div style="font-size:11px;color:#475569">${(a.aspect||"").replace("_"," ")} · pH ${a.vals.pH||"—"} · FCL ${a.vals.FCL||"—"}</div>
+    <div style="font-size:11px;color:#94a3b8">${(a.aspect||"").replace("_"," ")} · pH ${a.vals.pH||"—"} · FCL ${a.vals.FCL||"—"}</div>
   </div>
   <div style="color:#38bdf8;font-size:11px">→</div>
 </div>`;
@@ -440,7 +456,7 @@ function buildOrd(p,client){
 <div class="hdr">
   <button class="hdr-back" onclick="set({screen:'client'})">← ${e(client.name)}</button>
   <div class="hdr-logo">📋 Ordonnance</div>
-  <div class="hdr-sub">${p.date} · ${client.vol} m³ · ${(p.aspect||"").replace("_"," ")}${p.sourceHTH?" · HTH":""}</div>
+  <div class="hdr-sub" style="color:#94a3b8">${p.date} · ${client.vol} m³ · ${(p.aspect||"").replace("_"," ")}${p.sourceHTH?" · HTH":""}</div>
 </div>
 <div class="pad">`;
 
@@ -450,7 +466,7 @@ function buildOrd(p,client){
   h+=`<div class="card"><div class="sec">Relevés</div><table>
 <thead><tr style="border-bottom:1px solid #1a3356"><th style="text-align:left">Paramètre</th><th style="text-align:center">Mesuré</th><th style="text-align:center">Cible</th><th style="text-align:center">Statut</th></tr></thead>
 <tbody>`;
-  PKS.forEach(k=>{if(p.vals[k])h+=`<tr><td style="font-size:12px">${PR[k].lb}</td><td style="text-align:center;font-weight:700">${p.vals[k]}${PR[k].u?" "+PR[k].u:""}</td><td style="text-align:center;font-size:11px;color:#475569">${PR[k].min}–${PR[k].max}</td><td style="text-align:center;font-size:18px">${dot(p.vals[k],k)}</td></tr>`;});
+  PKS.forEach(k=>{if(p.vals[k])h+=`<tr><td style="font-size:12px">${PR[k].lb}</td><td style="text-align:center;font-weight:700">${p.vals[k]}${PR[k].u?" "+PR[k].u:""}</td><td style="text-align:center;font-size:12px;color:#94a3b8">${PR[k].min}–${PR[k].max}</td><td style="text-align:center;font-size:18px">${dot(p.vals[k],k)}</td></tr>`;});
   h+=`</tbody></table></div>`;
 
   h+=`<div class="card" style="display:flex;justify-content:space-between;align-items:center">
@@ -471,7 +487,7 @@ function buildOrd(p,client){
   if(Object.keys(p.pres.products).length){
     h+=`<div class="card" style="background:#080f20"><div class="sec">🚛 Récap camion</div><table>
 <thead><tr style="border-bottom:1px solid #1a3356"><th style="text-align:left">Produit</th><th style="text-align:right">Quantité</th></tr></thead><tbody>`;
-    Object.entries(p.pres.products).forEach(([k,q])=>h+=`<tr><td style="padding:7px 0"><div style="font-weight:600">${e(PRODS[k]?.n||k)}</div><div style="font-size:10px;color:#334155">${e(PRODS[k]?.r||"")}</div></td><td style="text-align:right;font-weight:700;color:#38bdf8">${e(q)}</td></tr>`);
+    Object.entries(p.pres.products).forEach(([k,q])=>h+=`<tr><td style="padding:7px 0"><div style="font-weight:600">${e(PRODS[k]?.n||k)}</div><div style="font-size:11px;color:#64748b">${e(PRODS[k]?.r||"")}</div></td><td style="text-align:right;font-weight:700;color:#38bdf8">${e(q)}</td></tr>`);
     h+=`</tbody></table></div>`;
   }
   if(client.mode!=="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact<br>• pH 7,0–7,4 · TAC 80–180 · CYA 20–40 mg/L</div></div>`;
@@ -500,14 +516,14 @@ function buildHist(client,analyses){
     const last=pts[pts.length-1];
     h+=`<div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-    <div><span style="font-weight:700;font-size:14px">${PR[k].lb}</span><span style="font-size:11px;color:#475569;margin-left:6px">${PR[k].u}</span></div>
+    <div><span style="font-weight:700;font-size:14px">${PR[k].lb}</span><span style="font-size:11px;color:#7dd3fc;margin-left:6px">${PR[k].u}</span></div>
     <div style="display:flex;align-items:center;gap:8px"><span style="font-weight:800;font-size:16px;color:${COL[k]}">${last}</span><span style="font-size:18px">${dot(last,k)}</span></div>
   </div>
   <div style="display:flex;justify-content:space-between;align-items:flex-end">
     ${spark(pts,COL[k],180,44,PR[k].min,PR[k].max)}
-    <div style="font-size:10px;color:#334155;text-align:right">${sa.filter(a=>a.vals[k]).map(a=>`<div>${a.date}: <b style="color:${COL[k]}">${a.vals[k]}</b></div>`).join("")}</div>
+    <div style="font-size:12px;color:#94a3b8;text-align:right">${sa.filter(a=>a.vals[k]).map(a=>`<div>${a.date}: <b style="color:${COL[k]}">${a.vals[k]}</b></div>`).join("")}</div>
   </div>
-  <div style="display:flex;justify-content:space-between;font-size:10px;color:#334155;margin-top:6px"><span>Min : ${PR[k].min}</span><span>Max : ${PR[k].max}</span></div>
+  <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:6px"><span>Min : ${PR[k].min}</span><span>Max : ${PR[k].max}</span></div>
 </div>`;
   });
   h+=`<button class="btn-g" onclick="set({screen:'client'})">← Retour</button></div></div>`;
@@ -624,7 +640,7 @@ function buildVoiceNotes(clientId){
   }
 
   if(!visible.length){
-    h+=`<div style="font-size:12px;color:#334155;text-align:center;padding:6px 0">Aucune note</div>`;
+    h+=`<div style="font-size:12px;color:#64748b;text-align:center;padding:6px 0">Aucune note</div>`;
   }else{
     visible.forEach(n=>{
       const d=new Date(n.ts);
@@ -677,7 +693,16 @@ window.clearApiKey=()=>{
   localStorage.removeItem("movatis_apikey");
   set({apiKey:"",showSettings:false});
 };
-window.goClient=id=>set({sel:id,screen:"client",pres:null,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+window.goClient=id=>set({sel:id,screen:"client",pres:null,showEditClient:false,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+window.saveClientInfo=()=>{
+  const id=S.sel;if(!id||!S.clients[id])return;
+  const vol=parseFloat(S.eVol.replace(",","."));
+  if(isNaN(vol)||vol<=0)return;
+  const upd={...S.clients};
+  upd[id]={...upd[id],vol,mode:S.eMode||upd[id].mode};
+  lsSave(upd);
+  set({clients:upd,showEditClient:false});
+};
 window.goAnalyse=()=>set({screen:"analyse",vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
 window.setPres=p=>set({screen:"ordonnance",pres:p});
 window.setDecimalField=function(key,input){Object.assign(S,{[key]:input.value});};
