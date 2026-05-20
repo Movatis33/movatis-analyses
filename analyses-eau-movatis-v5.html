@@ -62,6 +62,7 @@ tr{border-bottom:1px solid #0a1628;}
 .stat .l{font-size:11px;color:#64748b;margin-top:2px;}
 @keyframes vnblink{0%,100%{opacity:1;}50%{opacity:0;}}
 </style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div id="app"></div>
@@ -133,7 +134,7 @@ function buildPres(vals,vol,mode,aspect,algM){
     else{const dl=80-tac,d=Math.round(dl*vol*1.7);pr.TAC_PLUS=d+" g";at.push("TAC PLUS → "+d+" g"+(dl>20?" (correction massive)":""));if(dl>30){ac.push("Filtration 24h/24 pendant la correction TAC");ac.push("Couper la régulation pH automatique");wa.push("⚠️ Correction TAC massive — filtration 24h + couper régulation pH auto");}}
   }
   if(th>0&&th<150)wa.push("⚠️ TH < 150 mg/L — eau agressive.");
-  if(!isNaN(cya)){if(cya<20){const d=Math.round((30-cya)*vol*1);pr.STABILISANT=d+" g";at.push("STABILISANT PM-401 → "+d+" g — 10g/m³ par +10ppm, 48h pour agir — prévenir client");wa.push("⚠️ CYA < 20 mg/L — STABILISANT obligatoire. Met 48h à agir.");}else if(cya>60)wa.push("⚠️ CYA > 60 mg/L — surveiller, risque blocage chlore.");}
+  if(!isNaN(cya)){if(cya<20){const d=Math.round((30-cya)*vol*1);pr.STABILISANT=d+" g";at.push("STABILISANT PM-401 → "+d+" g — 10g/m³ par +10ppm, 48h pour agir — prévenir client");wa.push("⚠️ CYA < 20 mg/L — STABILISANT obligatoire. Met 48h à agir.");}else if(cya>40){const cyaCible=30,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil max 40 mg/L.");at.push("Vidanger "+vDrain+" m³ et remplacer par eau claire — ramène CYA à ~"+cyaCible+" mg/L");pr.VIDANGE_CYA=vDrain+" m³";}}
   if(phos>100){const d=phos<=200?Math.round(vol*3):phos<=500?Math.round(vol*6):phos<=1000?Math.round(vol*12):Math.round(vol*24);pr.PHOS_OUT=d+" mL";at.push("PHOS-OUT → "+d+" mL — traiter AVANT l'algicide");wa.push("⚠️ Phosphates > 100 ppb — PHOS-OUT avant algicide");}
   if((parseFloat(vals.Fe)||0)>0.2||(parseFloat(vals.Cu)||0)>0.1){pr.ION_MAGNETIC="À évaluer";wa.push("⚠️ Métaux détectés — ION MAGNETIC recommandé");}
   if(aspect==="claire"&&mode!=="electrolyseur"){const n=Math.ceil(vol/20);pr.STICKS_CTX=n+" stick(s) / 5 jours";at.push("Poser "+n+" stick(s) skimmer — film intact, panier propre");}
@@ -154,19 +155,65 @@ async function claude(messages,max=600){
 async function readPhoto(b64,mime){return claude([{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:'Analyse cette image de test d\'eau de piscine. Il peut s\'agir d\'une BANDELETTE colorimétrique (Hach, Bayrol, AquaChek, Marina...) tenue devant son flacon avec l\'échelle de référence, ou d\'un PHOTOMÈTRE numérique (PoolLab, Scuba II, eXact...), ou d\'un comparateur liquide.\n\nPOUR UNE BANDELETTE : compare soigneusement les couleurs de chaque plage de la bandelette avec l\'échelle imprimée sur le flacon. Chaque plage correspond à un paramètre. La lecture est approximative — retourne la valeur de l\'échelle la plus proche de la couleur observée.\n\nJSON STRICT uniquement, aucun texte avant ou après :\n{"FCL":null,"TCL":null,"pH":null,"TAC":null,"TH":null,"CYA":null,"Fe":null,"Cu":null,"Phos":null}\n\nCorrespondances : FCL=Free Chlorine/Chlore Libre(mg/L), TCL=Total Chlorine(mg/L), pH=valeur pH, TAC=Alkalinity/Alcalinité(ppm), TH=Hardness/TH(ppm), CYA=Stabilizer/Stabilisant(ppm), Fe=Iron/Fer(mg/L), Cu=Copper/Cuivre(mg/L), Phos=Phosphates(ppb). Nombres uniquement, null si absent ou illisible.'}]}],500);}
 async function readHTH(b64){return claude([{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:'Rapport HTH Test\'O Pro. Extrais UNIQUEMENT les valeurs mesurées (pas les idéales). JSON STRICT:\n{"clientName":null,"date":null,"TAC":null,"pH":null,"CYA":null,"FCL":null,"CCL":null,"salt":null,"TH":null,"Cu":null,"Fe":null,"Phos":null,"volume":null,"mode":null}\nclientName=nom client, date=JJ/MM/AAAA, TAC=ALK, FCL=F Cl (chlore libre), CCL=chlore combiné, TH=HARD, Cu=COPPER, Fe=IRON, Phos=PHOS(ppb), volume=m³, mode="electrolyseur"/"chlore_non_stab"/"chlore_stab"/"brome"/"uv"/null. Ne pas extraire les recommandations HTH.'}]}],600);}
 
-// ── EXPORT / IMPORT JSON (remplace Drive) ─────────
-function exportJSON(){
-  const data=JSON.stringify(S.clients,null,2);
-  const blob=new Blob([data],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
+// ── EXPORT / IMPORT JSON → Drive ──────────────────
+const DRIVE_FOLDER_ID="1pplP7oC8Vkue24sWScSTqkOamC5AP0Fx";
+const GOOGLE_CLIENT_ID="782935774647-ob4eho1t82dsfs8asemu1qr4ffma01um.apps.googleusercontent.com";
+async function exportJSON(){
   const d=new Date();
   const stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-  a.href=url;a.download="movatis_backup_"+stamp+".json";
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
-  localStorage.setItem("movatis_last_export",stamp);
-  set({dvMsg:"✅ Fichier téléchargé — movatis_backup_"+stamp+".json",exportAlert:false});
+  const filename="movatis_backup_"+stamp+".json";
+  const data=JSON.stringify(S.clients,null,2);
+  set({dvMsg:"⏳ Sauvegarde Drive en cours…",exportAlert:false});
+  try{
+    // 1. Chercher si un fichier du même nom existe déjà
+    const token=await getGoogleToken();
+    const searchResp=await fetch(
+      "https://www.googleapis.com/drive/v3/files?q=name%3D%27"+encodeURIComponent(filename)+"%27+and+%27"+DRIVE_FOLDER_ID+"%27+in+parents+and+trashed%3Dfalse&fields=files(id)",
+      {headers:{"Authorization":"Bearer "+token}}
+    );
+    const searchData=await searchResp.json();
+    const existingId=searchData.files&&searchData.files[0]?searchData.files[0].id:null;
+    const meta={name:filename,mimeType:"application/json",...(existingId?{}:{parents:[DRIVE_FOLDER_ID]})};
+    const body=new Blob([JSON.stringify(meta)],{type:"application/json"});
+    const file=new Blob([data],{type:"application/json"});
+    const form=new FormData();
+    form.append("metadata",body);
+    form.append("file",file);
+    const url=existingId
+      ?"https://www.googleapis.com/upload/drive/v3/files/"+existingId+"?uploadType=multipart"
+      :"https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+    const method=existingId?"PATCH":"POST";
+    const resp=await fetch(url,{method,headers:{"Authorization":"Bearer "+token},body:form});
+    if(!resp.ok)throw new Error("HTTP "+resp.status);
+    localStorage.setItem("movatis_last_export",stamp);
+    set({dvMsg:"✅ Sauvegardé sur Drive — "+filename,exportAlert:false});
+  }catch(err){
+    // Fallback : téléchargement local
+    const url=URL.createObjectURL(new Blob([data],{type:"application/json"}));
+    const a=document.createElement("a");
+    a.href=url;a.download=filename;
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);},1000);
+    localStorage.setItem("movatis_last_export",stamp);
+    set({dvMsg:"⚠️ Drive inaccessible — fichier téléchargé localement",exportAlert:false});
+  }
+}
+async function getGoogleToken(){
+  // Tente de récupérer le token via l'identity API Google
+  return new Promise((resolve,reject)=>{
+    if(typeof google==="undefined"||!google.accounts||!google.accounts.oauth2){
+      reject(new Error("Google Identity Services non disponible"));return;
+    }
+    const client=google.accounts.oauth2.initTokenClient({
+      client_id:GOOGLE_CLIENT_ID,
+      scope:"https://www.googleapis.com/auth/drive.file",
+      callback:(resp)=>{
+        if(resp.error)reject(new Error(resp.error));
+        else resolve(resp.access_token);
+      }
+    });
+    client.requestAccessToken({prompt:""});
+  });
 }
 function importJSON(file){
   if(!file)return;
