@@ -69,10 +69,10 @@ tr{border-bottom:1px solid #0a1628;}
 const SK="movatis_v3";
 const DEMO={};
 const PRODS={RITOCAL_GR:{n:"RITOCAL GR",r:"PM-531"},ACTIBON:{n:"ACTIBON SHOCK",r:"PM-420"},ALGIKLEAN:{n:"ALGIKLEAN",r:"PM-634"},ALGI_YELLOW:{n:"ALGI-YELLOW",r:"PM-654"},PH_MOINS:{n:"pH MOINS",r:"PM-601"},TAC_PLUS:{n:"TAC PLUS",r:"PM-612"},STABILISANT:{n:"STABILISANT",r:"PM-401"},PHOS_OUT:{n:"PHOS-OUT",r:"PM-625"},BIOFILM_OUT:{n:"BIOFILM OUT",r:"PM-630"},ULTRA_CLEAR:{n:"ULTRA CLEAR",r:"PM-643"},ION_MAGNETIC:{n:"ION MAGNETIC",r:"PM-615"},STICKS_CTX:{n:"Sticks chlore non stabilisé",r:"CTX-123"},CELNET:{n:"CELNET",r:"PM-142"}};
-const PR={FCL:{min:1,max:3,u:"mg/L",lb:"Chlore Libre"},TCL:{min:1,max:3.6,u:"mg/L",lb:"Chlore Total"},pH:{min:7,max:7.4,u:"",lb:"pH"},TAC:{min:80,max:180,u:"mg/L",lb:"TAC / ALK"},TH:{min:150,max:350,u:"mg/L",lb:"TH / HARD"},CYA:{min:20,max:40,u:"mg/L",lb:"CYA (Stab.)"},Fe:{min:0,max:0.2,u:"mg/L",lb:"Fer / IRON"},Cu:{min:0,max:0.1,u:"mg/L",lb:"Cuivre / COPPER"},Phos:{min:0,max:100,u:"ppb",lb:"Phosphates / PHOS"}};
+const PR={FCL:{min:1,max:3,u:"mg/L",lb:"Chlore Libre"},TCL:{min:1,max:3.6,u:"mg/L",lb:"Chlore Total"},pH:{min:7,max:7.4,u:"",lb:"pH"},TAC:{min:80,max:180,u:"mg/L",lb:"TAC / ALK"},TH:{min:150,max:350,u:"mg/L",lb:"TH / HARD"},CYA:{min:30,max:50,u:"mg/L",lb:"CYA (Stab.)"},Fe:{min:0,max:0.2,u:"mg/L",lb:"Fer / IRON"},Cu:{min:0,max:0.1,u:"mg/L",lb:"Cuivre / COPPER"},Phos:{min:0,max:100,u:"ppb",lb:"Phosphates / PHOS"},salt:{min:3,max:5,u:"g/L",lb:"Sel / SALT"}};
 const PKS=Object.keys(PR);
 const ML={chlore_non_stab:"Sticks non stab.",chlore_stab:"Chlore stab.",electrolyseur:"Électrolyse",uv:"UV",brome:"Brome"};
-const COL={FCL:"#38bdf8",TCL:"#818cf8",pH:"#4ade80",TAC:"#fb923c",TH:"#f472b6",CYA:"#facc15",Fe:"#f87171",Cu:"#a78bfa",Phos:"#34d399"};
+const COL={FCL:"#38bdf8",TCL:"#818cf8",pH:"#4ade80",TAC:"#fb923c",TH:"#f472b6",CYA:"#facc15",Fe:"#f87171",Cu:"#a78bfa",Phos:"#34d399",salt:"#67e8f9"};
 
 function lsLoad(){try{const r=localStorage.getItem(SK);if(r)return JSON.parse(r);}catch{}localStorage.setItem(SK,JSON.stringify(DEMO));return JSON.parse(JSON.stringify(DEMO));}
 function lsSave(d){
@@ -133,7 +133,7 @@ function buildPres(vals,vol,mode,aspect,algM){
     else{const dl=80-tac,d=Math.round(dl*vol*1.7);pr.TAC_PLUS=d+" g";at.push("TAC PLUS → "+d+" g"+(dl>20?" (correction massive)":""));if(dl>30){ac.push("Filtration 24h/24 pendant la correction TAC");ac.push("Couper la régulation pH automatique");wa.push("⚠️ Correction TAC massive — filtration 24h + couper régulation pH auto");}}
   }
   if(th>0&&th<150)wa.push("⚠️ TH < 150 mg/L — eau agressive.");
-  if(!isNaN(cya)){if(cya<20){const d=Math.round((30-cya)*vol*1);pr.STABILISANT=d+" g";at.push("STABILISANT PM-401 → "+d+" g — 10g/m³ par +10ppm, 48h pour agir — prévenir client");wa.push("⚠️ CYA < 20 mg/L — STABILISANT obligatoire. Met 48h à agir.");}else if(cya>40){const cyaCible=30,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil max 40 mg/L.");at.push("Vidanger "+vDrain+" m³ et remplacer par eau claire — ramène CYA à ~"+cyaCible+" mg/L");pr.VIDANGE_CYA=vDrain+" m³";}}
+  if(!isNaN(cya)){if(cya<30){const d=Math.round((40-cya)*vol/10*3);pr.STABILISANT=d+" g";at.push("STABILISANT PM-401 → "+d+" g — 30g/m³ par +10ppm, 48h pour agir — prévenir client");wa.push("⚠️ CYA < 30 mg/L — STABILISANT obligatoire. Met 48h à agir.");}else if(cya>50){const cyaCible=40,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil max 50 mg/L.");at.push("Vidanger "+vDrain+" m³ et remplacer par eau claire — ramène CYA à ~"+cyaCible+" mg/L");pr.VIDANGE_CYA=vDrain+" m³";}}
   if(phos>100){const d=phos<=200?Math.round(vol*3):phos<=500?Math.round(vol*6):phos<=1000?Math.round(vol*12):Math.round(vol*24);pr.PHOS_OUT=d+" mL";at.push("PHOS-OUT → "+d+" mL — traiter AVANT l'algicide");wa.push("⚠️ Phosphates > 100 ppb — PHOS-OUT avant algicide");}
   if((parseFloat(vals.Fe)||0)>0.2||(parseFloat(vals.Cu)||0)>0.1){pr.ION_MAGNETIC="À évaluer";wa.push("⚠️ Métaux détectés — ION MAGNETIC recommandé");}
   if(aspect==="claire"&&mode!=="electrolyseur"){const n=Math.ceil(vol/20);pr.STICKS_CTX=n+" stick(s) / 5 jours";at.push("Poser "+n+" stick(s) skimmer — film intact, panier propre");}
@@ -253,7 +253,7 @@ function importJSON(file){
 // ── ÉTAT ──────────────────────────────────────────
 const S={
   screen:"home",clients:{},sel:null,pres:null,
-  vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},
+  vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:"",salt:""},
   aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",
   showHTH:false,hthStep:"upload",hthRes:[],hthProg:{c:0,t:0},hthDone:{i:0,s:0},
   showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
@@ -586,8 +586,8 @@ function buildOrd(p,client){
     Object.entries(p.pres.products).forEach(([k,q])=>h+=`<tr><td style="padding:7px 0"><div style="font-weight:600">${e(PRODS[k]?.n||k)}</div><div style="font-size:11px;color:#64748b">${e(PRODS[k]?.r||"")}</div></td><td style="text-align:right;font-weight:700;color:#38bdf8">${e(q)}</td></tr>`);
     h+=`</tbody></table></div>`;
   }
-  if(client.mode!=="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact<br>• pH 7,0–7,4 · TAC 80–180 · CYA 20–40 mg/L</div></div>`;
-  if(client.mode==="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Électrolyseur</div><div style="font-size:13px;line-height:1.9">• Redox 650–750 mV — production 30–40%<br>• pH 7,0–7,4 · TAC 80–180 · CYA 20–40 mg/L</div></div>`;
+  if(client.mode!=="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact<br>• pH 7,0–7,4 · TAC 80–180 · CYA 30–50 mg/L</div></div>`;
+  if(client.mode==="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Électrolyseur</div><div style="font-size:13px;line-height:1.9">• Redox 650–750 mV — production 30–40%<br>• pH 7,0–7,4 · TAC 80–180 · CYA 30–50 mg/L</div></div>`;
   h+=`<div class="card"><div class="sec">✉️ Mail client</div>
 <textarea id="mailTxt" readonly style="height:220px;font-size:11px;font-family:monospace;line-height:1.6">${e(mail)}</textarea>
 <button class="btn" onclick="copyMail()">📋 Copier le mail</button>
@@ -790,7 +790,7 @@ window.clearApiKey=()=>{
   localStorage.removeItem("movatis_apikey");
   set({apiKey:"",showSettings:false});
 };
-window.goClient=id=>set({sel:id,screen:"client",pres:null,showEditClient:false,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+window.goClient=id=>set({sel:id,screen:"client",pres:null,showEditClient:false,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:"",salt:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
 window.saveClientInfo=()=>{
   const id=S.sel;if(!id||!S.clients[id])return;
   const vol=parseFloat(String(S.eVol).replace(",","."));
@@ -818,7 +818,7 @@ window.shareMail=()=>{
   if(navigator.share){navigator.share({text:t.value}).catch(()=>{});}
   else{navigator.clipboard?.writeText(t.value);alert("Mail copié dans le presse-papiers");}
 };
-window.goAnalyse=()=>set({screen:"analyse",vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+window.goAnalyse=()=>set({screen:"analyse",vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:"",salt:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
 window.setPres=p=>set({screen:"ordonnance",pres:p});
 window.setDecimalField=function(key,input){Object.assign(S,{[key]:input.value});};
 window.setVDecimal=function(key,input){S.vals={...S.vals,[key]:input.value};};
@@ -905,7 +905,7 @@ window.confirmHTH=function(){
   S.hthRes.forEach(r=>{
     if(r.status!=="ok"||!r.parsed){s++;return;}
     const p=r.parsed;
-    const vals={FCL:p.FCL!=null?String(p.FCL):"",TCL:p.TCL!=null?String(p.TCL):"",pH:p.pH!=null?String(p.pH):"",TAC:p.TAC!=null?String(p.TAC):"",TH:p.TH!=null?String(p.TH):"",CYA:p.CYA!=null?String(p.CYA):"",Fe:p.Fe!=null?String(p.Fe):"",Cu:p.Cu!=null?String(p.Cu):"",Phos:p.Phos!=null?String(p.Phos):""};
+    const vals={FCL:p.FCL!=null?String(p.FCL):"",TCL:p.TCL!=null?String(p.TCL):"",pH:p.pH!=null?String(p.pH):"",TAC:p.TAC!=null?String(p.TAC):"",TH:p.TH!=null?String(p.TH):"",CYA:p.CYA!=null?String(p.CYA):"",Fe:p.Fe!=null?String(p.Fe):"",Cu:p.Cu!=null?String(p.Cu):"",Phos:p.Phos!=null?String(p.Phos):"",salt:p.salt!=null?String(p.salt):""};
     const date=p.date||new Date().toLocaleDateString("fr-FR");
     const pName=(p.clientName||'').toLowerCase().trim();
     let tid=pName?Object.entries(upd).find(([,c])=>c.name.toLowerCase().trim()===pName)?.[0]:r.clientId;
