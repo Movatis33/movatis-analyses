@@ -686,6 +686,11 @@ function buildHTH(){
   </div>
 </div></div>`;
           }
+          const aspVal=r.aspect||"claire";
+          inner+=`<div style="margin-top:8px"><div style="font-size:10px;color:#94a3b8;margin-bottom:5px">Aspect de l'eau</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+  ${[["claire","✅ Claire"],["verte_légère","🟡 Verte légère"],["verte_dense","🔴 Verte dense"],["noire_marron","⚫ Noire / Marron"]].map(([v,l])=>`<button style="background:${aspVal===v?"#0d2a50":"#070d1a"};color:${aspVal===v?"#38bdf8":"#94a3b8"};border:1px solid ${aspVal===v?"#38bdf8":"#1a3356"};border-radius:8px;padding:6px 8px;font-size:11px;font-weight:${aspVal===v?"700":"400"};cursor:pointer;text-align:left" onclick="hthAspect(${idx},'${v}')">${l}</button>`).join("")}
+</div></div>`;
         }
       }
       inner+=`</div>`;
@@ -859,6 +864,7 @@ window.onPhoto=async function(input){
   input.value="";
 };
 
+window.hthAspect=function(idx,val){const r=[...S.hthRes];r[idx]={...r[idx],aspect:val};set({hthRes:r});};
 window.openHTH=()=>set({showHTH:true,hthStep:"upload",hthRes:[]});
 window.closeHTH=()=>set({showHTH:false});
 window.hthCreate=(i,v)=>{const r=[...S.hthRes];r[i]={...r[i],createNew:v};set({hthRes:r});};
@@ -914,8 +920,8 @@ window.confirmHTH=function(){
       upd[id]={name:p.clientName||"Client HTH",vol:parseFloat(r.newVol)||parseFloat(p.volume)||0,mode:r.newMode||"chlore_non_stab",analyses:[]};
       tid=id;
     }
-    const pres=buildPres(vals,upd[tid].vol,upd[tid].mode,"claire",false);
-    upd[tid]={...upd[tid],analyses:[...(upd[tid].analyses||[]),{date,ts:Date.now(),vals,aspect:"claire",algMoutarde:false,pres,sourceHTH:true}]};
+    const pres=buildPres(vals,upd[tid].vol,upd[tid].mode,r.aspect||"claire",false);
+    upd[tid]={...upd[tid],analyses:[...(upd[tid].analyses||[]),{date,ts:Date.now(),vals,aspect:r.aspect||"claire",algMoutarde:false,pres,sourceHTH:true}]};
     i++;
   });
   lsSave(upd);
