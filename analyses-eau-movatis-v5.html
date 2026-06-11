@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Analyses eau"/>
-<title>Analyses d'eau Movatis</title>
+<title>Analyses d'eau Movatis v6</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:#070d1a;}
@@ -66,7 +66,7 @@ tr{border-bottom:1px solid #0a1628;}
 <body>
 <div id="app"></div>
 <script>
-const SK="movatis_v3";
+const SK="movatis_v6";
 const DEMO={};
 const PRODS={RITOCAL_GR:{n:"RITOCAL GR",r:"PM-531"},ACTIBON:{n:"ACTIBON SHOCK",r:"PM-420"},ALGIKLEAN:{n:"ALGIKLEAN",r:"PM-634"},ALGI_YELLOW:{n:"ALGI-YELLOW",r:"PM-654"},PH_MOINS:{n:"pH MOINS",r:"PM-601"},TAC_PLUS:{n:"TAC PLUS",r:"PM-612"},STABILISANT:{n:"STABILISANT",r:"PM-401"},PHOS_OUT:{n:"PHOS-OUT",r:"PM-625"},BIOFILM_OUT:{n:"BIOFILM OUT",r:"PM-630"},ULTRA_CLEAR:{n:"ULTRA CLEAR",r:"PM-643"},ION_MAGNETIC:{n:"ION MAGNETIC",r:"PM-615"},STICKS_CTX:{n:"Sticks chlore non stabilisé",r:"CTX-123"},CELNET:{n:"CELNET",r:"PM-142"}};
 const PR={FCL:{min:1,max:3,u:"mg/L",lb:"Chlore Libre"},TCL:{min:1,max:3.6,u:"mg/L",lb:"Chlore Total"},pH:{min:7,max:7.4,u:"",lb:"pH"},TAC:{min:80,max:180,u:"mg/L",lb:"TAC / ALK"},TH:{min:150,max:350,u:"mg/L",lb:"TH / HARD"},CYA:{min:30,max:50,u:"mg/L",lb:"CYA (Stab.)"},Fe:{min:0,max:0.2,u:"mg/L",lb:"Fer / IRON"},Cu:{min:0,max:0.1,u:"mg/L",lb:"Cuivre / COPPER"},Phos:{min:0,max:100,u:"ppb",lb:"Phosphates / PHOS"},salt:{min:3,max:5,u:"g/L",lb:"Sel / SALT"}};
@@ -104,40 +104,123 @@ function calcLSI(pH,TH,TAC,t=28){
 }
 
 function buildPres(vals,vol,mode,aspect,algM){
+  // actions_tech est maintenant un tableau d'objets {txt, phase}
+  // phase: "now" = technicien sur place, "j1" = J+24h client, "clear" = après eau claire
   const at=[],ac=[],pr={},wa=[];
   const fcl=parseFloat(vals.FCL)||0,ph=parseFloat(vals.pH)||0,tac=parseFloat(vals.TAC)||0,th=parseFloat(vals.TH)||0,cya=parseFloat(vals.CYA),phos=parseFloat(vals.Phos)||0;
   const cc=(parseFloat(vals.TCL)||0)-fcl;
   const isV=aspect==="verte_légère"||aspect==="verte_dense";
   const isD=aspect==="verte_dense"||aspect==="noire_marron";
+
   if(cc>0.6)wa.push("⚠️ Chlore combiné > 0,6 mg/L — traitement choc obligatoire");
+
+  // ── PHASE 1 : Préparation mécanique ─────────────
   if(isD){
-    at.push("Laver le filtre AVANT tout traitement");at.push("Brosser les parois");
-    pr.BIOFILM_OUT=Math.round(vol*5)+" mL";at.push("BIOFILM OUT → "+pr.BIOFILM_OUT);
-    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push("RITOCAL GR → "+pr.RITOCAL_GR+" — répartir plan d'eau, filtration en marche");}
-    pr.ACTIBON=Math.round(vol*10)+" mL";at.push("ACTIBON SHOCK → "+pr.ACTIBON+" (×2) — soirée");
-    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push("ALGIKLEAN → "+pr.ALGIKLEAN+" — filtration en marche");
-    pr.ULTRA_CLEAR=Math.round(vol*10)+" mL";at.push("ULTRA CLEAR → "+pr.ULTRA_CLEAR);
-    ac.push("Filtration 24h/24 pendant 48–72h");ac.push("Laver le filtre à nouveau 24h après");ac.push("Ne pas baigner tant que l'eau n'est pas claire");ac.push("Ne pas poser les sticks avant eau claire + conditions OK");
-    if(mode==="electrolyseur"){ac.push("Ne pas remettre l'électrolyseur avant eau claire + pH 7,0–7,4 + TAC > 80");wa.push("⚠️ Électrolyseur : proposer CELNET");pr.CELNET="Selon encrassement";}
-  }else if(aspect==="verte_légère"){
-    at.push("Brosser les parois");
-    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push("RITOCAL GR → "+pr.RITOCAL_GR);}
-    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push("ALGIKLEAN → "+pr.ALGIKLEAN+" — filtration en marche");
-    pr.ACTIBON=Math.round(vol*5)+" mL";at.push("ACTIBON SHOCK → "+pr.ACTIBON+" — soirée");
-    ac.push("Laver filtre 24h après");ac.push("Filtration 24h/24 pendant 48h");ac.push("Ne pas baigner — FCL ≥ 1 mg/L + eau claire requis");
+    at.push({txt:"Laver le filtre AVANT tout traitement",phase:"now"});
+    at.push({txt:"Brosser les parois",phase:"now"});
+    pr.BIOFILM_OUT=Math.round(vol*5)+" mL";
+    at.push({txt:"BIOFILM OUT → "+pr.BIOFILM_OUT,phase:"now"});
+  }else if(isV){
+    at.push({txt:"Brosser les parois",phase:"now"});
   }
-  if(algM){pr.ALGI_YELLOW=Math.round(vol*10)+" mL";at.push("ALGI-YELLOW → "+pr.ALGI_YELLOW+" — surchloration cible 5 mg/L");wa.push("⚠️ Algues moutarde : surchloration 5 mg/L requise");}
-  if(ph>(isV?6.9:7.5)&&ph>0){const d=Math.round(vol*10*((ph-(isV?6.8:7.2))/0.3));pr.PH_MOINS=d+" g";at.push("pH MOINS PM-601 → "+d+" g — 10g/m³ par -0,3 unité, en 3 fois, filtration 1h après");}
+
+  // ── PHASE 2 : Équilibre chimique (avant traitements) ──
   if(tac>0&&tac<80){
     if(ph<6.3)wa.push("🔴 pH < 6,3 — NE PAS ajouter TAC PLUS. Corriger pH d'abord.");
-    else{const dl=80-tac,d=Math.round(dl*vol*1.7);pr.TAC_PLUS=d+" g";at.push("TAC PLUS → "+d+" g"+(dl>20?" (correction massive)":""));if(dl>30){ac.push("Filtration 24h/24 pendant la correction TAC");ac.push("Couper la régulation pH automatique");wa.push("⚠️ Correction TAC massive — filtration 24h + couper régulation pH auto");}}
+    else{
+      const dl=80-tac,d=Math.round(dl*vol*1.7);
+      pr.TAC_PLUS=d+" g";
+      at.push({txt:"TAC PLUS → "+d+" g"+(dl>20?" (correction massive)":""),phase:"now"});
+      if(dl>30){ac.push("Couper la régulation pH automatique pendant la correction TAC");wa.push("⚠️ Correction TAC massive — couper régulation pH auto");}
+    }
   }
-  if(th>0&&th<150)wa.push("⚠️ TH < 150 mg/L — eau agressive.");
-  if(!isNaN(cya)){if(cya<30){const d=Math.round((40-cya)*vol/10*3);pr.STABILISANT=d+" g";at.push("STABILISANT PM-401 → "+d+" g — 30g/m³ par +10ppm, 48h pour agir — prévenir client");wa.push("⚠️ CYA < 30 mg/L — STABILISANT obligatoire. Met 48h à agir.");}else if(cya>50){const cyaCible=40,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil max 50 mg/L.");at.push("Vidanger "+vDrain+" m³ et remplacer par eau claire — ramène CYA à ~"+cyaCible+" mg/L");pr.VIDANGE_CYA=vDrain+" m³";}}
-  if(phos>100){const d=phos<=200?Math.round(vol*3):phos<=500?Math.round(vol*6):phos<=1000?Math.round(vol*12):Math.round(vol*24);pr.PHOS_OUT=d+" mL";at.push("PHOS-OUT → "+d+" mL — traiter AVANT l'algicide");wa.push("⚠️ Phosphates > 100 ppb — PHOS-OUT avant algicide");}
+  if(ph>7.5&&ph>0){
+    const d=Math.round(vol*10*((ph-7.2)/0.3));
+    pr.PH_MOINS=d+" g";
+    at.push({txt:"pH MOINS PM-601 → "+d+" g — 10g/m³ par -0,3 unité, en 3 fois, filtration 1h après",phase:"now"});
+  }
+
+  // ── PHASE 3 : Phosphates (avant algicide) ───────
+  if(phos>100){
+    const d=phos<=200?Math.round(vol*3):phos<=500?Math.round(vol*6):phos<=1000?Math.round(vol*12):Math.round(vol*24);
+    pr.PHOS_OUT=d+" mL";
+    at.push({txt:"PHOS-OUT → "+d+" mL — traiter AVANT l'algicide",phase:"now"});
+    wa.push("⚠️ Phosphates > 100 ppb — PHOS-OUT avant algicide");
+  }
+
+  // ── PHASE 4 : Choc chlore + algicide ────────────
+  if(isD){
+    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push({txt:"RITOCAL GR → "+pr.RITOCAL_GR+" — répartir plan d'eau, filtration en marche",phase:"now"});}
+    pr.ACTIBON=Math.round(vol*10)+" mL";at.push({txt:"ACTIBON SHOCK → "+pr.ACTIBON+" (×2) — soirée",phase:"now"});
+    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push({txt:"ALGIKLEAN → "+pr.ALGIKLEAN+" — filtration en marche",phase:"now"});
+    pr.ULTRA_CLEAR=Math.round(vol*10)+" mL";at.push({txt:"ULTRA CLEAR → "+pr.ULTRA_CLEAR,phase:"now"});
+    if(mode==="electrolyseur"){wa.push("⚠️ Électrolyseur : proposer CELNET");pr.CELNET="Selon encrassement";}
+  }else if(isV){
+    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push({txt:"RITOCAL GR → "+pr.RITOCAL_GR,phase:"now"});}
+    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push({txt:"ALGIKLEAN → "+pr.ALGIKLEAN+" — filtration en marche",phase:"now"});
+    pr.ACTIBON=Math.round(vol*5)+" mL";at.push({txt:"ACTIBON SHOCK → "+pr.ACTIBON+" — soirée",phase:"now"});
+  }
+  if(algM){
+    pr.ALGI_YELLOW=Math.round(vol*10)+" mL";
+    at.push({txt:"ALGI-YELLOW → "+pr.ALGI_YELLOW+" — surchloration cible 5 mg/L",phase:"now"});
+    wa.push("⚠️ Algues moutarde : surchloration 5 mg/L requise");
+  }
+
+  // ── PHASE 5 : Actions différées J+24h (client) ──
+  if(isD){
+    at.push({txt:"Laver le filtre à nouveau",phase:"j1"});
+    at.push({txt:"Vérifier l'éclaircissement de l'eau",phase:"j1"});
+  }else if(isV){
+    at.push({txt:"Laver le filtre",phase:"j1"});
+    at.push({txt:"Vérifier l'éclaircissement de l'eau",phase:"j1"});
+  }
+
+  // ── PHASE 6 : Après eau claire ───────────────────
+  if(isV||isD){
+    at.push({txt:"Ne pas baigner tant que FCL ≥ 1 mg/L et eau claire",phase:"clear"});
+    if(mode==="electrolyseur"){
+      at.push({txt:"Ne pas remettre l'électrolyseur avant eau claire + pH 7,0–7,4 + TAC > 80",phase:"clear"});
+    }else{
+      const n=Math.ceil(vol/20);
+      pr.STICKS_CTX=n+" stick(s) / 5 jours";
+      at.push({txt:"Poser "+n+" stick(s) skimmer — film intact, panier propre",phase:"clear"});
+    }
+  }
+
+  // ── Métaux ───────────────────────────────────────
   if((parseFloat(vals.Fe)||0)>0.2||(parseFloat(vals.Cu)||0)>0.1){pr.ION_MAGNETIC="À évaluer";wa.push("⚠️ Métaux détectés — ION MAGNETIC recommandé");}
-  if(aspect==="claire"&&mode!=="electrolyseur"){const n=Math.ceil(vol/20);pr.STICKS_CTX=n+" stick(s) / 5 jours";at.push("Poser "+n+" stick(s) skimmer — film intact, panier propre");}
-  if(mode==="electrolyseur"&&fcl<0.5&&!pr.RITOCAL_GR){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push("RITOCAL GR → "+pr.RITOCAL_GR+" — amorçage électrolyseur");wa.push("⚠️ Électrolyseur : amorcer RITOCAL GR avant remise en route");}
+
+  // ── TH bas ───────────────────────────────────────
+  if(th>0&&th<150)wa.push("⚠️ TH < 150 mg/L — eau agressive.");
+
+  // ── CYA ──────────────────────────────────────────
+  if(!isNaN(cya)){
+    if(cya<30){
+      const d=Math.round((40-cya)*vol/10*3);
+      pr.STABILISANT=d+" g";
+      // En eau verte, STABILISANT après eau claire — sinon maintenant
+      at.push({txt:"STABILISANT PM-401 → "+d+" g — 30g/m³ par +10ppm, 48h pour agir — prévenir client",phase:isV||isD?"clear":"now"});
+      wa.push("⚠️ CYA < 30 mg/L — STABILISANT obligatoire. Met 48h à agir.");
+    }else if(cya>50){
+      const cyaCible=40,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;
+      wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil max 50 mg/L.");
+      at.push({txt:"Vidanger "+vDrain+" m³ et remplacer par eau claire — ramène CYA à ~"+cyaCible+" mg/L",phase:"now"});
+      pr.VIDANGE_CYA=vDrain+" m³";
+    }
+  }
+
+  // ── Eau claire — entretien normal ────────────────
+  if(aspect==="claire"&&mode!=="electrolyseur"){
+    const n=Math.ceil(vol/20);
+    pr.STICKS_CTX=n+" stick(s) / 5 jours";
+    at.push({txt:"Poser "+n+" stick(s) skimmer — film intact, panier propre",phase:"now"});
+  }
+  if(mode==="electrolyseur"&&fcl<0.5&&!pr.RITOCAL_GR){
+    pr.RITOCAL_GR=Math.round(vol*13)+" g";
+    at.push({txt:"RITOCAL GR → "+pr.RITOCAL_GR+" — amorçage électrolyseur",phase:"now"});
+    wa.push("⚠️ Électrolyseur : amorcer RITOCAL GR avant remise en route");
+  }
+
   return{actions_tech:at,actions_client:ac,products:pr,warnings:wa};
 }
 
@@ -523,10 +606,7 @@ function buildAnalyse(client){
 }
 
 // ── ORDONNANCE ────────────────────────────────────
-function buildOrd(p,client){
-  const L=calcLSI(p.vals.pH,p.vals.TH,p.vals.TAC);
-  const lC=!L?"#94a3b8":parseFloat(L)<-0.3?"#f87171":parseFloat(L)>0.3?"#fb923c":"#4ade80";
-  const lL=!L?"—":parseFloat(L)<-0.3?"Eau agressive":parseFloat(L)>0.3?"Eau incrustante":"Eau équilibrée";
+function buildInstructionsClient(p,client){
   const isVert=p.aspect==="verte_légère"||p.aspect==="verte_dense"||p.aspect==="noire_marron";
   const mailReleves=Object.entries(PR).filter(([k])=>p.vals[k]).map(([k,r])=>{
     const v=p.vals[k],d=dot(v,k);
@@ -535,18 +615,60 @@ function buildOrd(p,client){
     const lb=(r.lb+" ").padEnd(20,"·");
     return`${ic} ${lb}: ${v}${r.u?" "+r.u:""}   (cible ${r.min}–${r.max}${r.u?" "+r.u:""})  ${st}`;
   }).join("\n");
+
   const sectionFait=p.filtreLave
     ?`━━━ 🔧 CE QUE NOUS AVONS FAIT ━━━━━━━\n\n• Analyse complète de l'eau\n• Traitement correctif effectué sur place\n• Filtre nettoyé lors de notre intervention\n\n`
     :`━━━ 🔧 CE QUE NOUS AVONS FAIT ━━━━━━━\n\n• Analyse complète de l'eau\n• Traitement correctif effectué sur place\n\n`;
-  const ligneFiltre=isVert?`⚠️  FILTRE — Relaver impérativement le filtre 24h après notre passage puis dans 48h se référer au manomètre\n\n`:``;
+
+  // Actions J+24h — compatibilité ascendante
+  const normAt2=(p.pres.actions_tech||[]).map(a=>typeof a==="string"?{txt:a,phase:"now"}:a);
+  const actJ1=normAt2.filter(a=>a.phase==="j1");
+  // Actions eau claire
+  const actClear=normAt2.filter(a=>a.phase==="clear");
+
   const ligneFiltration=(p.filtrationMode==="manuel")
     ?`⚙️  FILTRATION — Laisser tourner en manuel 24h/24 jusqu'à ce que l'eau s'éclaircisse\n\n`
     :`⚙️  FILTRATION — Reprendre le programme habituel\n\n`;
-  const excl=["filtre","filtration","ne pas baigner","ne pas poser les sticks","ne pas remettre l'électrolyseur","redox"];
-  const actClient=p.pres.actions_client.filter(a=>!excl.some(x=>a.toLowerCase().includes(x))).map((a,i)=>`${i+1}️⃣  ${a}`).join("\n");
-  const actVertes=isVert?`1️⃣  Ne pas baigner tant que l'eau n'est pas claire\n2️⃣  Ne pas poser les sticks avant eau claire + conditions OK${client.mode==="electrolyseur"?"\n3️⃣  Ne pas remettre l'électrolyseur avant eau claire + pH 7,0–7,4 + TAC > 80":""}\n\n`:``;
-  const ligneCtrl=isVert?`📅  Refaire une mesure dans 48h et reprendre le traitement normal\n\n`:``;
-  const mail=`Bonjour,\n\nSuite à notre passage du ${p.date}, voici le bilan de votre piscine (${client.vol} m³).\n\n━━━ 📊 RELEVÉS DU JOUR ━━━━━━━━━━━━━━\n\n${mailReleves}\n\n${sectionFait}━━━ ✅ VOS ACTIONS DANS LES 48H ━━━━━\n\n${ligneFiltre}${ligneFiltration}${actVertes}${actClient?actClient+"\n\n":""}${ligneCtrl}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nN'hésitez pas à nous contacter pour toute question.\n\nCordialement,`;
+
+  let txt=`Bonjour,\n\nSuite à notre passage du ${p.date}, voici le bilan de votre piscine (${client.vol} m³).\n\n`;
+  txt+=`━━━ 📊 RELEVÉS DU JOUR ━━━━━━━━━━━━━━\n\n${mailReleves}\n\n`;
+  txt+=sectionFait;
+  txt+=`━━━ ✅ À FAIRE MAINTENANT ━━━━━━━━━━━\n\n`;
+  txt+=ligneFiltration;
+  if(isVert){
+    txt+=`⚠️  Ne pas baigner tant que l'eau n'est pas claire\n\n`;
+  }
+
+  if(actJ1.length){
+    txt+=`━━━ 📅 DANS 24H ━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    actJ1.forEach((a,i)=>txt+=`${i+1}️⃣  ${a.txt}\n`);
+    txt+="\n";
+  }
+
+  if(actClear.length){
+    txt+=`━━━ 🏊 QUAND L'EAU EST CLAIRE ━━━━━━━\n\n`;
+    actClear.forEach((a,i)=>txt+=`${i+1}️⃣  ${a.txt}\n`);
+    txt+="\n";
+    if(isVert)txt+=`📅  Refaire une analyse avant de reprendre le traitement normal\n\n`;
+  }
+
+  txt+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nN'hésitez pas à nous contacter pour toute question.\n\nCordialement,`;
+  return txt;
+}
+
+function buildOrd(p,client){
+  const L=calcLSI(p.vals.pH,p.vals.TH,p.vals.TAC);
+  const lC=!L?"#94a3b8":parseFloat(L)<-0.3?"#f87171":parseFloat(L)>0.3?"#fb923c":"#4ade80";
+  const lL=!L?"—":parseFloat(L)<-0.3?"Eau agressive":parseFloat(L)>0.3?"Eau incrustante":"Eau équilibrée";
+  const isVert=p.aspect==="verte_légère"||p.aspect==="verte_dense"||p.aspect==="noire_marron";
+
+  // Séparer les actions par phase — compatibilité ascendante (anciennes analyses = strings)
+  const normAt=(p.pres.actions_tech||[]).map(a=>typeof a==="string"?{txt:a,phase:"now"}:a);
+  const atNow=normAt.filter(a=>a.phase==="now");
+  const atJ1=normAt.filter(a=>a.phase==="j1");
+  const atClear=normAt.filter(a=>a.phase==="clear");
+
+  const instrClient=buildInstructionsClient(p,client);
 
   let h=`<div class="screen">
 <div class="hdr">
@@ -570,28 +692,45 @@ function buildOrd(p,client){
   <div style="font-size:28px;font-weight:800;color:${lC}">${L||"—"}</div>
 </div>`;
 
-  if(p.pres.actions_tech.length){
-    h+=`<div class="card"><div class="sec">🔧 Actions technicien</div>`;
-    p.pres.actions_tech.forEach((a,i)=>h+=`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="background:#38bdf8;color:#070d1a;border-radius:6px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px">${i+1}</div><div style="font-size:13px;line-height:1.5">${e(a)}</div></div>`);
+  // ── Actions sur place ──────────────────────────
+  if(atNow.length){
+    h+=`<div class="card"><div class="sec">🔧 Actions technicien — sur place</div>`;
+    atNow.forEach((a,i)=>h+=`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="background:#38bdf8;color:#070d1a;border-radius:6px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px">${i+1}</div><div style="font-size:13px;line-height:1.5">${e(a.txt)}</div></div>`);
     h+=`</div>`;
   }
-  if(p.pres.actions_client.length){
-    h+=`<div class="card" style="border-color:#1a4d2b"><div class="sec">📋 Actions client</div>`;
-    p.pres.actions_client.forEach(a=>h+=`<div style="display:flex;gap:10px;margin-bottom:8px"><div style="color:#4ade80;font-size:16px;flex-shrink:0;margin-top:1px">›</div><div style="font-size:13px;line-height:1.5">${e(a)}</div></div>`);
+
+  // ── Actions J+24h ──────────────────────────────
+  if(atJ1.length){
+    h+=`<div class="card" style="border-color:#1a4060"><div class="sec" style="color:#7dd3fc">📅 À faire dans 24h — client</div>`;
+    atJ1.forEach((a,i)=>h+=`<div style="display:flex;gap:10px;margin-bottom:8px"><div style="background:#1a4060;color:#7dd3fc;border-radius:6px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px">${i+1}</div><div style="font-size:13px;line-height:1.5;color:#cbd5e1">${e(a.txt)}</div></div>`);
     h+=`</div>`;
   }
+
+  // ── Actions eau claire ─────────────────────────
+  if(atClear.length){
+    h+=`<div class="card" style="border-color:#166534"><div class="sec" style="color:#4ade80">🏊 Quand l'eau est claire</div>`;
+    atClear.forEach((a,i)=>h+=`<div style="display:flex;gap:10px;margin-bottom:8px"><div style="background:#14532d;color:#4ade80;border-radius:6px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px">${i+1}</div><div style="font-size:13px;line-height:1.5;color:#cbd5e1">${e(a.txt)}</div></div>`);
+    h+=`</div>`;
+  }
+
+  // ── Récap camion ───────────────────────────────
   if(Object.keys(p.pres.products).length){
     h+=`<div class="card" style="background:#080f20"><div class="sec">🚛 Récap camion</div><table>
 <thead><tr style="border-bottom:1px solid #1a3356"><th style="text-align:left">Produit</th><th style="text-align:right">Quantité</th></tr></thead><tbody>`;
     Object.entries(p.pres.products).forEach(([k,q])=>h+=`<tr><td style="padding:7px 0"><div style="font-weight:600">${e(PRODS[k]?.n||k)}</div><div style="font-size:11px;color:#64748b">${e(PRODS[k]?.r||"")}</div></td><td style="text-align:right;font-weight:700;color:#38bdf8">${e(q)}</td></tr>`);
     h+=`</tbody></table></div>`;
   }
+
   if(client.mode!=="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact<br>• pH 7,0–7,4 · TAC 80–180 · CYA 30–50 mg/L</div></div>`;
   if(client.mode==="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Électrolyseur</div><div style="font-size:13px;line-height:1.9">• Redox 650–750 mV — production 30–40%<br>• pH 7,0–7,4 · TAC 80–180 · CYA 30–50 mg/L</div></div>`;
-  h+=`<div class="card"><div class="sec">✉️ Mail client</div>
-<textarea id="mailTxt" readonly style="height:220px;font-size:11px;font-family:monospace;line-height:1.6">${e(mail)}</textarea>
-<button class="btn" onclick="copyMail()">📋 Copier le mail</button>
-<button class="btn-g" onclick="shareMail()" style="margin-top:0">↗ Partager</button>
+
+  // ── Instructions client (remplace mail) ────────
+  h+=`<div class="card"><div class="sec">📋 Instructions client</div>
+<textarea id="instrTxt" readonly style="height:260px;font-size:11px;font-family:monospace;line-height:1.6">${e(instrClient)}</textarea>
+<div class="row" style="margin-top:8px">
+  <button class="btn" style="flex:1;margin-bottom:0" onclick="copyInstr()">📋 Copier</button>
+  <button class="btn-g" style="flex:1;margin-bottom:0" onclick="shareInstr()">↗ Partager</button>
+</div>
 </div>
 <button class="btn-g" onclick="set({screen:'client'})">← Retour fiche client</button>
 </div></div>`;
@@ -686,11 +825,6 @@ function buildHTH(){
   </div>
 </div></div>`;
           }
-          const aspVal=r.aspect||"claire";
-          inner+=`<div style="margin-top:8px"><div style="font-size:10px;color:#94a3b8;margin-bottom:5px">Aspect de l'eau</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
-  ${[["claire","✅ Claire"],["verte_légère","🟡 Verte légère"],["verte_dense","🔴 Verte dense"],["noire_marron","⚫ Noire / Marron"]].map(([v,l])=>`<button style="background:${aspVal===v?"#0d2a50":"#070d1a"};color:${aspVal===v?"#38bdf8":"#94a3b8"};border:1px solid ${aspVal===v?"#38bdf8":"#1a3356"};border-radius:8px;padding:6px 8px;font-size:11px;font-weight:${aspVal===v?"700":"400"};cursor:pointer;text-align:left" onclick="hthAspect(${idx},'${v}')">${l}</button>`).join("")}
-</div></div>`;
         }
       }
       inner+=`</div>`;
@@ -817,18 +951,19 @@ window.deleteAnalyse=(clientId,ts)=>{
   upd[clientId]={...upd[clientId],analyses:(upd[clientId].analyses||[]).filter(a=>a.ts!==ts)};
   lsSave(upd);set({clients:upd});
 };
-window.shareMail=()=>{
-  const t=document.getElementById("mailTxt");
+window.shareInstr=()=>{
+  const t=document.getElementById("instrTxt");
   if(!t)return;
   if(navigator.share){navigator.share({text:t.value}).catch(()=>{});}
-  else{navigator.clipboard?.writeText(t.value);alert("Mail copié dans le presse-papiers");}
+  else{navigator.clipboard?.writeText(t.value);alert("Instructions copiées dans le presse-papiers");}
 };
+window.copyInstr=()=>{const t=document.getElementById("instrTxt");if(t)navigator.clipboard?.writeText(t.value);};
 window.goAnalyse=()=>set({screen:"analyse",vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:"",salt:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
 window.setPres=p=>set({screen:"ordonnance",pres:p});
 window.setDecimalField=function(key,input){Object.assign(S,{[key]:input.value});};
 window.setVDecimal=function(key,input){S.vals={...S.vals,[key]:input.value};};
 window.setTextField=function(key,input){Object.assign(S,{[key]:input.value});};
-window.copyMail=()=>{const t=document.getElementById("mailTxt");if(t)navigator.clipboard?.writeText(t.value);};
+
 
 window.addClient=()=>{
   if(!S.nName.trim()||!S.nVol)return;
@@ -864,7 +999,6 @@ window.onPhoto=async function(input){
   input.value="";
 };
 
-window.hthAspect=function(idx,val){const r=[...S.hthRes];r[idx]={...r[idx],aspect:val};set({hthRes:r});};
 window.openHTH=()=>set({showHTH:true,hthStep:"upload",hthRes:[]});
 window.closeHTH=()=>set({showHTH:false});
 window.hthCreate=(i,v)=>{const r=[...S.hthRes];r[i]={...r[i],createNew:v};set({hthRes:r});};
@@ -920,11 +1054,22 @@ window.confirmHTH=function(){
       upd[id]={name:p.clientName||"Client HTH",vol:parseFloat(r.newVol)||parseFloat(p.volume)||0,mode:r.newMode||"chlore_non_stab",analyses:[]};
       tid=id;
     }
-    const pres=buildPres(vals,upd[tid].vol,upd[tid].mode,r.aspect||"claire",false);
-    upd[tid]={...upd[tid],analyses:[...(upd[tid].analyses||[]),{date,ts:Date.now(),vals,aspect:r.aspect||"claire",algMoutarde:false,pres,sourceHTH:true}]};
+    const pres=buildPres(vals,upd[tid].vol,upd[tid].mode,"claire",false);
+    upd[tid]={...upd[tid],analyses:[...(upd[tid].analyses||[]),{date,ts:Date.now(),vals,aspect:"claire",algMoutarde:false,pres,sourceHTH:true}]};
     i++;
   });
   lsSave(upd);
+  // Si 1 seule analyse importée → aller directement sur la fiche client
+  const imported=S.hthRes.filter(r=>r.status==="ok"&&r.parsed);
+  if(i===1&&imported.length===1){
+    const p=imported[0].parsed;
+    const pName=(p.clientName||'').toLowerCase().trim();
+    const tid=pName?Object.entries(upd).find(([,c])=>c.name.toLowerCase().trim()===pName)?.[0]:imported[0].clientId;
+    if(tid){
+      set({clients:upd,showHTH:false,sel:tid,screen:"client",pres:null,showEditClient:false});
+      return;
+    }
+  }
   set({clients:upd,hthStep:"done",hthDone:{i,s}});
 };
 
@@ -982,7 +1127,7 @@ window.vnDelete=function(clientId,ts){
 // ── SERVICE WORKER PWA ────────────────────────────
 if("serviceWorker"in navigator){
   const sw=[
-    'const C="movatis-v1";',
+    'const C="movatis-v6";',
     'const SKIP=["api.anthropic.com","googleapis.com","gstatic.com"];',
     'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll([self.location.href])).catch(()=>{}));});',
     'self.addEventListener("activate",e=>e.waitUntil(clients.claim()));',
