@@ -119,32 +119,38 @@ function buildPres(vals,vol,mode,aspect,algM){
     at.push({txt:"Laver le filtre AVANT tout traitement",phase:"now"});
     at.push({txt:"Brosser les parois",phase:"now"});
     pr.BIOFILM_OUT=Math.round(vol*5)+" mL";
-    at.push({txt:"BIOFILM OUT → "+pr.BIOFILM_OUT,phase:"now"});
+    at.push({txt:"BIOFILM OUT PM-630 → "+pr.BIOFILM_OUT+" — Verser devant les buses de refoulement, filtration en marche 12h. Traiter impérativement avant le choc chlore.",phase:"now"});
   }else if(isV){
     at.push({txt:"Brosser les parois",phase:"now"});
   }
 
   // ── PHASE 2 : Équilibre chimique (avant traitements) ──
   const tacTarget=aspect==="algues_moutarde"?100:80;
+  // Si pH > 8 : corriger le pH EN PREMIER car le TAC PLUS remonterait encore le pH
+  // et rendrait le chlore totalement inactif. On reporte la correction TAC après.
+  const phTropHautPourTac=ph>8&&ph>0;
   if(tac>0&&tac<tacTarget){
-    if(ph<6.3)wa.push("🔴 pH < 6,3 — NE PAS ajouter TAC PLUS. Corriger pH d'abord.");
-    else{
+    if(ph<6.3){
+      wa.push("🔴 pH < 6,3 — NE PAS ajouter TAC PLUS. Corriger pH d'abord.");
+    }else if(phTropHautPourTac){
+      wa.push("⚠️ pH > 8 — Corriger le pH AVANT le TAC : le bicarbonate (TAC PLUS) remonte le pH et aggraverait la situation. Vérifier le TAC à la prochaine visite.");
+    }else{
       const dl=tacTarget-tac,d=Math.round(dl*vol*1.7);
       pr.TAC_PLUS=d+" g";
-      at.push({txt:"TAC PLUS → "+d+" g"+(dl>20?" (correction massive)":""),phase:"now"});
+      at.push({txt:"TAC PLUS PM-612 → "+d+" g — Le TAC est le tampon de l'eau : il stabilise le pH et protège les équipements. Verser en une fois devant les buses de refoulement, filtration en marche. Laisser circuler 2h avant tout autre produit."+(dl>20?" (correction massive — prévoir 2 passages)":""),phase:"now"});
       if(dl>30){ac.push("Couper la régulation pH automatique pendant la correction TAC");wa.push("⚠️ Correction TAC massive — couper régulation pH auto");}
     }
   }
   if(ph>7.5&&ph>0){
     const d=Math.round(vol*10*((ph-7.2)/0.3));
     pr.PH_MOINS=d+" g";
-    at.push({txt:"pH MOINS PM-601 → "+d+" g — 10g/m³ par -0,3 unité, en 3 fois, filtration 1h après",phase:"now"});
+    at.push({txt:"pH MOINS PM-601 → "+d+" g — Un pH > 7,5 réduit fortement l'efficacité du chlore (à pH 8, seulement ~20% de chlore actif). Fractionner en 3 fois minimum, filtration en marche 1h entre chaque apport. Doser 10g/m³ par -0,3 unité de pH.",phase:"now"});
   }
   if(!isV&&!isD){
     if(ph>0&&ph<6.9){
       const d=Math.round(vol*75*(7.2-ph));
       pr.PH_PLUS=d+" g";
-      at.push({txt:"pH PLUS PM-602 → "+d+" g — 15g/m³ par +0,2 unité, en plusieurs fois, filtration 1h après",phase:"now"});
+      at.push({txt:"pH PLUS PM-602 → "+d+" g — pH trop bas : le chlore est agressif pour les baigneurs et corrosif pour les équipements. Apporter en plusieurs fois, filtration 1h après chaque apport. Doser 15g/m³ par +0,2 unité de pH.",phase:"now"});
     }
     const lsi=calcLSI(vals.pH,vals.TH,vals.TAC);
     if(lsi!==null){
@@ -156,7 +162,7 @@ function buildPres(vals,vol,mode,aspect,algM){
         wa.push("⚠️ Indice LSI "+lsi+" — eau incrustante (dépôts calcaires, filtre, parois)");
         const d=Math.round(vol*10);
         pr.ANTICALCAIRE=d+" mL";
-        at.push({txt:"ANTICALCAIRE PM-605 → "+d+" mL — séquestrant anticalcaire 0,5 à 1 L/100m³, filtration en marche",phase:"now"});
+        at.push({txt:"ANTICALCAIRE PM-605 → "+d+" mL — Verser devant les buses de refoulement, filtration en marche. Renouveler chaque mois en eau dure.",phase:"now"});
         if(th>0&&th>350)ac.push("TH élevé — aucun produit Movatis ne le réduit directement. Prévoir un renouvellement partiel d'eau (~10-15% du volume).");
       }
     }
@@ -166,26 +172,26 @@ function buildPres(vals,vol,mode,aspect,algM){
   if(phos>100){
     const d=phos<=200?Math.round(vol*3):phos<=500?Math.round(vol*6):phos<=1000?Math.round(vol*12):Math.round(vol*24);
     pr.PHOS_OUT=d+" mL";
-    at.push({txt:"PHOS-OUT → "+d+" mL — traiter AVANT l'algicide",phase:"now"});
+    at.push({txt:"PHOS-OUT PM-625 → "+d+" mL — Verser devant les buses de refoulement, filtration en marche 6h minimum. L'eau peut blanchir temporairement, c'est normal. Traiter AVANT l'algicide.",phase:"now"});
     wa.push("⚠️ Phosphates > 100 ppb — PHOS-OUT avant algicide");
   }
 
   // ── PHASE 4 : Choc chlore + algicide ────────────
   if(isD){
-    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push({txt:"RITOCAL GR → "+pr.RITOCAL_GR+" — répartir plan d'eau, filtration en marche",phase:"now"});}
-    pr.ACTIBON=Math.round(vol*10)+" mL";at.push({txt:"ACTIBON SHOCK → "+pr.ACTIBON+" (×2) — soirée",phase:"now"});
-    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push({txt:"ALGIKLEAN → "+pr.ALGIKLEAN+" — filtration en marche",phase:"now"});
-    pr.ULTRA_CLEAR=Math.round(vol*10)+" mL";at.push({txt:"ULTRA CLEAR → "+pr.ULTRA_CLEAR,phase:"now"});
+    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau en soirée, filtration en marche 12h minimum. Ne pas baigner tant que FCL < 1 mg/L.",phase:"now"});}
+    pr.ACTIBON=Math.round(vol*10)+" mL";at.push({txt:"ACTIBON SHOCK PM-420 → "+pr.ACTIBON+" (×2) — Verser en soirée en deux points opposés du bassin, filtration en marche toute la nuit.",phase:"now"});
+    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push({txt:"ALGIKLEAN PM-634 → "+pr.ALGIKLEAN+" — Verser devant les buses de refoulement, filtration en marche 24h.",phase:"now"});
+    pr.ULTRA_CLEAR=Math.round(vol*10)+" mL";at.push({txt:"ULTRA CLEAR PM-643 → "+pr.ULTRA_CLEAR+" — Verser lentement devant les buses, filtration en marche. Favorise la floculation des particules vers le filtre.",phase:"now"});
     if(mode==="electrolyseur"){wa.push("⚠️ Électrolyseur : proposer CELNET");pr.CELNET="Selon encrassement";}
   }else if(isV){
-    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push({txt:"RITOCAL GR → "+pr.RITOCAL_GR,phase:"now"});}
-    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push({txt:"ALGIKLEAN → "+pr.ALGIKLEAN+" — filtration en marche",phase:"now"});
-    pr.ACTIBON=Math.round(vol*5)+" mL";at.push({txt:"ACTIBON SHOCK → "+pr.ACTIBON+" — soirée",phase:"now"});
+    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau en soirée, filtration en marche 12h minimum.",phase:"now"});}
+    pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push({txt:"ALGIKLEAN PM-634 → "+pr.ALGIKLEAN+" — Verser devant les buses de refoulement, filtration en marche 24h.",phase:"now"});
+    pr.ACTIBON=Math.round(vol*5)+" mL";at.push({txt:"ACTIBON SHOCK PM-420 → "+pr.ACTIBON+" — Verser en soirée, filtration en marche toute la nuit.",phase:"now"});
   }else if(aspect==="algues_moutarde"){
     at.push({txt:"Brosser les zones touchées",phase:"now"});
-    pr.ALGI_YELLOW=Math.round(vol*10)+" mL";at.push({txt:"ALGI-YELLOW → "+pr.ALGI_YELLOW+" — 0,5 L/50m³",phase:"now"});
-    pr.RITOCAL_GR=Math.round(vol*10)+" g";at.push({txt:"RITOCAL GR → "+pr.RITOCAL_GR+" — minimum 10g/m³ (fiche Piscimar)",phase:"now"});
-    pr.ULTRA_CLEAR=Math.round(vol*9)+" mL";at.push({txt:"ULTRA CLEAR → "+pr.ULTRA_CLEAR+" — 0,45 L/50m³",phase:"j1"});
+    pr.ALGI_YELLOW=Math.round(vol*10)+" mL";at.push({txt:"ALGI-YELLOW PM-654 → "+pr.ALGI_YELLOW+" — Verser devant les buses de refoulement, filtration en marche 24h. Ne pas mélanger avec d'autres produits.",phase:"now"});
+    pr.RITOCAL_GR=Math.round(vol*10)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau après l'algicide, filtration en marche 12h minimum.",phase:"now"});
+    pr.ULTRA_CLEAR=Math.round(vol*9)+" mL";at.push({txt:"ULTRA CLEAR PM-643 → "+pr.ULTRA_CLEAR+" — À apporter 24h après l'ALGI-YELLOW. Verser lentement devant les buses, filtration en marche.",phase:"j1"});
     wa.push("⚠️ Algues moutarde : cause fréquente = phosphates élevés — vérifier < 100 ppb");
   }
 
@@ -206,7 +212,7 @@ function buildPres(vals,vol,mode,aspect,algM){
     }else{
       const n=Math.ceil(vol/20);
       pr.STICKS_CTX=n+" stick(s) / 5 jours";
-      at.push({txt:"Poser "+n+" stick(s) skimmer — film intact, panier propre",phase:"clear"});
+      at.push({txt:"Poser "+n+" stick(s) skimmer CTX-123 — Film plastique intact, panier propre. Renouveler tous les 5 jours environ selon consommation.",phase:"clear"});
     }
   }
 
@@ -222,11 +228,11 @@ function buildPres(vals,vol,mode,aspect,algM){
       const d=Math.round((35-cya)*vol*3);
       pr.STABILISANT=d+" g";
       // En eau verte, STABILISANT après eau claire — sinon maintenant
-      at.push({txt:"STABILISANT PM-401 → "+d+" g — 30g/m³ par +10ppm, 48h pour agir — prévenir client",phase:isV||isD?"clear":"now"});
+      at.push({txt:"STABILISANT PM-401 → "+d+" g — Diluer dans un seau d'eau chaude, verser devant les buses, filtration en marche 48h minimum. Prévenir le client : l'eau peut être trouble pendant 48h.",phase:isV||isD?"clear":"now"});
       wa.push("⚠️ CYA < 30 mg/L — STABILISANT obligatoire. Met 48h à agir.");
-    }else if(cya>60){
+    }else if(cya>80){
       const cyaCible=35,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;
-      wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil de surveillance 60 mg/L.");
+      wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil max 80 mg/L.");
       at.push({txt:"Vidanger "+vDrain+" m³ et remplacer par eau claire — ramène CYA à ~"+cyaCible+" mg/L",phase:"now"});
       pr.VIDANGE_CYA=vDrain+" m³";
     }
@@ -236,11 +242,11 @@ function buildPres(vals,vol,mode,aspect,algM){
   if(aspect==="claire"&&mode!=="electrolyseur"){
     const n=Math.ceil(vol/20);
     pr.STICKS_CTX=n+" stick(s) / 5 jours";
-    at.push({txt:"Poser "+n+" stick(s) skimmer — film intact, panier propre",phase:"now"});
+    at.push({txt:"Poser "+n+" stick(s) skimmer CTX-123 — Film plastique intact, panier propre. Renouveler tous les 5 jours environ selon consommation.",phase:"now"});
   }
   if(mode==="electrolyseur"&&fcl<0.5&&!pr.RITOCAL_GR){
     pr.RITOCAL_GR=Math.round(vol*13)+" g";
-    at.push({txt:"RITOCAL GR → "+pr.RITOCAL_GR+" — amorçage électrolyseur",phase:"now"});
+    at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Amorçage électrolyseur : répartir sur le plan d'eau, filtration en marche 12h avant remise en route de l'électrolyseur.",phase:"now"});
     wa.push("⚠️ Électrolyseur : amorcer RITOCAL GR avant remise en route");
   }
 
