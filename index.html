@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Analyses eau"/>
-<title>Analyses d'eau Movatis v6</title>
+<title>Analyses d'eau Movatis v7</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:#070d1a;}
@@ -66,7 +66,7 @@ tr{border-bottom:1px solid #0a1628;}
 <body>
 <div id="app"></div>
 <script>
-const SK="movatis_v6";
+const SK="movatis_v7";
 const DEMO={};
 const PRODS={RITOCAL_GR:{n:"RITOCAL GR",r:"PM-531"},ACTIBON:{n:"ACTIBON SHOCK",r:"PM-420"},ALGIKLEAN:{n:"ALGIKLEAN",r:"PM-634"},ALGI_YELLOW:{n:"ALGI-YELLOW",r:"PM-654"},PH_MOINS:{n:"pH MOINS",r:"PM-601"},PH_PLUS:{n:"pH PLUS",r:"PM-602"},TAC_PLUS:{n:"TAC PLUS",r:"PM-612"},STABILISANT:{n:"STABILISANT",r:"PM-401"},PHOS_OUT:{n:"PHOS-OUT",r:"PM-625"},BIOFILM_OUT:{n:"BIOFILM OUT",r:"PM-630"},ULTRA_CLEAR:{n:"ULTRA CLEAR",r:"PM-643"},ION_MAGNETIC:{n:"ION MAGNETIC",r:"PM-615"},ANTICALCAIRE:{n:"ANTICALCAIRE",r:"PM-605"},STICKS_CTX:{n:"Sticks chlore non stabilisé",r:"CTX-123"},CELNET:{n:"CELNET",r:"PM-142"}};
 const PR={FCL:{min:1,max:3,u:"mg/L",lb:"Chlore Libre"},TCL:{min:1,max:3.6,u:"mg/L",lb:"Chlore Total"},pH:{min:7,max:7.4,u:"",lb:"pH"},TAC:{min:80,max:180,u:"mg/L",lb:"TAC / ALK"},TH:{min:150,max:350,u:"mg/L",lb:"TH / HARD"},CYA:{min:30,max:40,u:"mg/L",lb:"CYA (Stab.)"},Fe:{min:0,max:0.2,u:"mg/L",lb:"Fer / IRON"},Cu:{min:0,max:0.1,u:"mg/L",lb:"Cuivre / COPPER"},Phos:{min:0,max:100,u:"ppb",lb:"Phosphates / PHOS"},salt:{min:3,max:5,u:"g/L",lb:"Sel / SALT"}};
@@ -232,7 +232,7 @@ function buildPres(vals,vol,mode,aspect,algM){
       wa.push("⚠️ CYA < 30 mg/L — STABILISANT obligatoire. Met 48h à agir.");
     }else if(cya>80){
       const cyaCible=35,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;
-      wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil max 80 mg/L.");
+      wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil de vidange 80 mg/L.");
       at.push({txt:"Vidanger "+vDrain+" m³ et remplacer par eau claire — ramène CYA à ~"+cyaCible+" mg/L",phase:"now"});
       pr.VIDANGE_CYA=vDrain+" m³";
     }
@@ -1157,7 +1157,7 @@ window.vnDelete=function(clientId,ts){
 // ── SERVICE WORKER PWA ────────────────────────────
 if("serviceWorker"in navigator){
   const sw=[
-    'const C="movatis-v6";',
+    'const C="movatis-v7";',
     'const SKIP=["api.anthropic.com","googleapis.com","gstatic.com"];',
     'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll([self.location.href])).catch(()=>{}));});',
     'self.addEventListener("activate",e=>e.waitUntil(clients.claim()));',
