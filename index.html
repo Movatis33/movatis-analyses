@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Analyses eau"/>
-<title>Analyses d'eau Movatis v6</title>
+<title>Analyses d'eau Movatis v7</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:#070d1a;}
@@ -24,7 +24,7 @@ input[inputmode=decimal]{-webkit-appearance:none;}
 .screen{min-height:100vh;padding-bottom:60px;}
 .hdr{background:linear-gradient(135deg,#070d1a 0%,#0d2240 100%);padding:18px 18px 14px;border-bottom:1px solid #1a3356;position:sticky;top:0;z-index:10;}
 .hdr-logo{font-size:18px;font-weight:800;color:#38bdf8;letter-spacing:-.5px;}
-.hdr-sub{font-size:13px;color:#7dd3fc;margin-top:2px;}
+.hdr-sub{font-size:12px;color:#64748b;margin-top:2px;}
 .hdr-back{background:none;border:none;color:#38bdf8;font-size:13px;cursor:pointer;padding:0;margin-bottom:4px;display:block;}
 .pad{padding:16px;}
 .card{background:#0d1f3c;border-radius:14px;padding:15px 16px;margin-bottom:12px;border:1px solid #1a3356;}
@@ -69,7 +69,7 @@ tr{border-bottom:1px solid #0a1628;}
 const SK="movatis_v6";
 const DEMO={};
 const PRODS={RITOCAL_GR:{n:"RITOCAL GR",r:"PM-531"},ACTIBON:{n:"ACTIBON SHOCK",r:"PM-420"},ALGIKLEAN:{n:"ALGIKLEAN",r:"PM-634"},ALGI_YELLOW:{n:"ALGI-YELLOW",r:"PM-654"},PH_MOINS:{n:"pH MOINS",r:"PM-601"},PH_PLUS:{n:"pH PLUS",r:"PM-602"},TAC_PLUS:{n:"TAC PLUS",r:"PM-612"},STABILISANT:{n:"STABILISANT",r:"PM-401"},PHOS_OUT:{n:"PHOS-OUT",r:"PM-625"},BIOFILM_OUT:{n:"BIOFILM OUT",r:"PM-630"},ULTRA_CLEAR:{n:"ULTRA CLEAR",r:"PM-643"},ION_MAGNETIC:{n:"ION MAGNETIC",r:"PM-615"},ANTICALCAIRE:{n:"ANTICALCAIRE",r:"PM-605"},STICKS_CTX:{n:"Sticks chlore non stabilisé",r:"CTX-123"},CELNET:{n:"CELNET",r:"PM-142"}};
-const PR={FCL:{min:1,max:3,u:"mg/L",lb:"Chlore Libre"},TCL:{min:1,max:3.6,u:"mg/L",lb:"Chlore Total"},pH:{min:7,max:7.4,u:"",lb:"pH"},TAC:{min:80,max:180,u:"mg/L",lb:"TAC / ALK"},TH:{min:150,max:350,u:"mg/L",lb:"TH / HARD"},CYA:{min:30,max:40,u:"mg/L",lb:"CYA (Stab.)"},Fe:{min:0,max:0.2,u:"mg/L",lb:"Fer / IRON"},Cu:{min:0,max:0.1,u:"mg/L",lb:"Cuivre / COPPER"},Phos:{min:0,max:100,u:"ppb",lb:"Phosphates / PHOS"},salt:{min:3,max:5,u:"g/L",lb:"Sel / SALT"}};
+const PR={FCL:{min:1.5,max:3,u:"mg/L",lb:"Chlore Libre"},TCL:{min:1,max:3.6,u:"mg/L",lb:"Chlore Total"},pH:{min:7,max:7.4,u:"",lb:"pH"},TAC:{min:80,max:180,u:"mg/L",lb:"TAC / ALK"},TH:{min:150,max:350,u:"mg/L",lb:"TH / HARD"},CYA:{min:25,max:80,u:"mg/L",lb:"CYA (Stab.)"},Fe:{min:0,max:0.2,u:"mg/L",lb:"Fer / IRON"},Cu:{min:0,max:0.1,u:"mg/L",lb:"Cuivre / COPPER"},Phos:{min:0,max:100,u:"ppb",lb:"Phosphates / PHOS"},salt:{min:3,max:5,u:"g/L",lb:"Sel / SALT"}};
 const PKS=Object.keys(PR);
 const ML={chlore_non_stab:"Sticks non stab.",chlore_stab:"Chlore stab.",electrolyseur:"Électrolyse",uv:"UV",brome:"Brome"};
 const COL={FCL:"#38bdf8",TCL:"#818cf8",pH:"#4ade80",TAC:"#fb923c",TH:"#f472b6",CYA:"#facc15",Fe:"#f87171",Cu:"#a78bfa",Phos:"#34d399",salt:"#67e8f9"};
@@ -225,16 +225,14 @@ function buildPres(vals,vol,mode,aspect,algM){
   // ── CYA ──────────────────────────────────────────
   if(!isNaN(cya)){
     if(cya<30){
-      const d=Math.round((35-cya)*vol*3);
+      const d=Math.round((52.5-cya)*vol*3);
       pr.STABILISANT=d+" g";
       // En eau verte, STABILISANT après eau claire — sinon maintenant
       at.push({txt:"STABILISANT PM-401 → "+d+" g — Diluer dans un seau d'eau chaude, verser devant les buses, filtration en marche 48h minimum. Prévenir le client : l'eau peut être trouble pendant 48h.",phase:isV||isD?"clear":"now"});
       wa.push("⚠️ CYA < 30 mg/L — STABILISANT obligatoire. Met 48h à agir.");
-    }else if(cya>40&&cya<=80){
-      wa.push("⚠️ CYA "+cya+" mg/L — surveiller, seuil de vidange à 80 mg/L.");
     }else if(cya>80){
-      const cyaCible=35,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;
-      wa.push("⚠️ CYA "+cya+" mg/L — seuil de vidange dépassé (> 80 mg/L).");
+      const cyaCible=50,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;
+      wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil 80 mg/L. Vidange obligatoire.");
       at.push({txt:"Vidanger "+vDrain+" m³ et remplacer par eau claire — ramène CYA à ~"+cyaCible+" mg/L",phase:"now"});
       pr.VIDANGE_CYA=vDrain+" m³";
     }
@@ -275,7 +273,7 @@ async function exportJSON(){
   const d=new Date();
   const stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   const filename="movatis_backup_"+stamp+".json";
-  const data=JSON.stringify({clients:S.clients,voiceNotes:vnLoad()},null,2);
+  const data=JSON.stringify(S.clients,null,2);
   set({dvMsg:"⏳ Sauvegarde Drive en cours…",exportAlert:false});
   try{
     // 1. Chercher si un fichier du même nom existe déjà
@@ -354,18 +352,11 @@ function importJSON(file){
   const reader=new FileReader();
   reader.onload=e=>{
     try{
-      const raw=JSON.parse(e.target.result);
-      if(typeof raw!=="object"||Array.isArray(raw))throw new Error("Format invalide");
-      // Nouveau format {clients:{...},voiceNotes:{...}} ou ancien format (objet clients direct)
-      const isNewFormat=raw.clients&&typeof raw.clients==="object"&&!Array.isArray(raw.clients);
-      const data=isNewFormat?raw.clients:raw;
-      const vn=isNewFormat&&raw.voiceNotes?raw.voiceNotes:null;
+      const data=JSON.parse(e.target.result);
       if(typeof data!=="object"||Array.isArray(data))throw new Error("Format invalide");
       if(Object.keys(S.clients).length>0&&!confirm(`Cela va remplacer ${Object.keys(S.clients).length} client(s) existant(s). Confirmer ?`))return;
       lsSave(data);
-      if(vn)vnSave(vn);
-      const nbVn=vn?Object.values(vn).reduce((s,a)=>s+a.length,0):0;
-      set({clients:data,dvMsg:"✅ "+Object.keys(data).length+" client(s) restauré(s)"+(nbVn?" + "+nbVn+" note(s) de visite":"")});
+      set({clients:data,dvMsg:"✅ "+Object.keys(data).length+" client(s) restauré(s)"});
     }catch{set({dvMsg:"❌ Fichier invalide — vérifiez qu'il s'agit d'un backup Movatis"});}
   };
   reader.readAsText(file);
@@ -456,7 +447,6 @@ function buildHome(){
     <div>
       <div class="hdr-logo">💧 Analyses d'eau Movatis</div>
       <div class="hdr-sub">Assistant traitement eau — Jean-François Morette</div>
-      <div style="font-size:12px;color:#38bdf8;margin-top:3px;font-weight:600;letter-spacing:.3px">v7 — 26 juin 2026</div>
     </div>
     <button onclick="set({showSettings:true})" style="background:${S.apiKey?"#0d2a1a":"#3a1a0a"};border:1px solid ${S.apiKey?"#166534":"#7f3d1d"};border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;color:${S.apiKey?"#4ade80":"#fb923c"};flex-shrink:0;margin-top:2px">${S.apiKey?"⚙️ API ✓":"⚙️ API !"}</button>
   </div>
@@ -643,30 +633,13 @@ function buildAnalyse(client){
 // ── ORDONNANCE ────────────────────────────────────
 function buildInstructionsClient(p,client){
   const isVert=p.aspect==="verte_légère"||p.aspect==="verte_dense"||p.aspect==="noire_marron";
-
-  // Explications vulgarisées par paramètre hors cible
-  const EXPL={
-    FCL:"Le chlore libre est le désinfectant actif de votre piscine. Il détruit bactéries et virus. Un niveau insuffisant laisse l'eau sans protection ; un niveau trop élevé peut irriter les yeux et la peau.",
-    TCL:"Le chlore total inclut le chlore libre et le chlore combiné (chloramines). Un écart important entre chlore total et chlore libre indique la présence de chloramines, responsables de l'odeur de chlore et des irritations.",
-    pH:"Le pH mesure l'acidité de l'eau. C'est le paramètre le plus important : un pH mal réglé rend le chlore inefficace et peut agresser la peau, les yeux et les équipements.",
-    TAC:"Le TAC (Titre Alcalimétrique Complet) est le pouvoir tampon de l'eau — il stabilise le pH et évite ses variations brutales. Un TAC trop bas entraîne des fluctuations de pH difficiles à maîtriser.",
-    TH:"Le TH (Titre Hydrotimétrique) mesure la dureté de l'eau, c'est-à-dire sa teneur en calcaire. Une eau trop dure entartre les équipements ; une eau trop douce peut être agressive pour les parois et le matériel.",
-    CYA:"Le stabilisant (acide cyanurique) protège le chlore des rayons UV du soleil. Sans lui, le chlore se dégrade rapidement. En excès, il inhibe l'action du chlore et l'eau peut devenir incontrôlable.",
-    Fe:"La présence de fer dans l'eau peut provoquer des colorations brunâtres ou verdâtres et tacher les parois de la piscine.",
-    Cu:"Le cuivre en excès peut colorer l'eau en vert-bleuté et tacher les cheveux et les parois.",
-    Phos:"Les phosphates sont la nourriture des algues. Plus leur taux est élevé, plus la prolifération d'algues est favorisée, même avec un traitement correct.",
-    salt:"Le sel est la source de production de chlore pour les piscines à électrolyse. Un niveau insuffisant réduit la production ; un excès peut être corrosif pour certains équipements."
-  };
-
   const mailReleves=Object.entries(PR).filter(([k])=>p.vals[k]).map(([k,r])=>{
     const v=p.vals[k],d=dot(v,k);
     const ic=d==="🟢"?"🟢":d==="🟠"?"🟠":"🔴";
     const st=d==="🟢"?"✓":d==="🟠"?"à corriger":"hors cible";
     const lb=(r.lb+" ").padEnd(20,"·");
-    let line=`${ic} ${lb}: ${v}${r.u?" "+r.u:""}   (cible ${r.min}–${r.max}${r.u?" "+r.u:""})  ${st}`;
-    if(d!=="🟢"&&EXPL[k])line+=`\n   💬 ${EXPL[k]}`;
-    return line;
-  }).join("\n\n");
+    return`${ic} ${lb}: ${v}${r.u?" "+r.u:""}   (cible ${r.min}–${r.max}${r.u?" "+r.u:""})  ${st}`;
+  }).join("\n");
 
   const sectionFait=p.filtreLave
     ?`━━━ 🔧 CE QUE NOUS AVONS FAIT ━━━━━━━\n\n• Analyse complète de l'eau\n• Traitement correctif effectué sur place\n• Filtre nettoyé lors de notre intervention\n\n`
@@ -679,38 +652,32 @@ function buildInstructionsClient(p,client){
   const actClear=normAt2.filter(a=>a.phase==="clear");
 
   const ligneFiltration=(p.filtrationMode==="manuel")
-    ?`⚙️  FILTRATION — Laisser tourner en manuel 24h/24 jusqu'à ce que l'eau s'éclaircisse. La filtration est indispensable pour que les produits agissent correctement.\n\n`
-    :`⚙️  FILTRATION — Reprendre le programme habituel de filtration.\n\n`;
+    ?`⚙️  FILTRATION — Laisser tourner en manuel 24h/24 jusqu'à ce que l'eau s'éclaircisse\n\n`
+    :`⚙️  FILTRATION — Reprendre le programme habituel\n\n`;
 
-  // Conseil général selon état global
-  const nbHors=Object.entries(PR).filter(([k])=>p.vals[k]&&dot(p.vals[k],k)!=="🟢").length;
-  let conseilGlobal="";
-  if(isVert){
-    conseilGlobal=`━━━ 💡 CONSEIL ━━━━━━━━━━━━━━━━━━━━━━━\n\nVotre piscine est en cours de traitement choc. Ce type de traitement demande en général 2 à 5 jours selon l'état initial de l'eau et la météo. Évitez d'ouvrir le robot ou de faire des ajouts sans nous consulter pendant cette période. Une fois l'eau revenue à la normale, n'hésitez pas à nous contacter pour programmer une visite de contrôle.\n\n`;
-  }else if(nbHors===0){
-    conseilGlobal=`━━━ 💡 CONSEIL ━━━━━━━━━━━━━━━━━━━━━━━\n\nVotre eau est en parfait équilibre. Pour maintenir cet état, veillez à vérifier régulièrement le niveau d'eau (évaporation en été), à nettoyer régulièrement le préfiltre et à ne pas modifier vous-même les dosages de produits. Un entretien régulier est la meilleure prévention contre les problèmes d'eau.\n\n`;
-  }else if(nbHors<=2){
-    conseilGlobal=`━━━ 💡 CONSEIL ━━━━━━━━━━━━━━━━━━━━━━━\n\nVotre eau présente quelques paramètres à corriger, mais rien de préoccupant. Les produits ajoutés lors de notre intervention vont rétablir l'équilibre dans les prochaines heures. Évitez de baigner jusqu'à ce que l'eau soit revenue à la normale (généralement 2 à 4 heures après traitement). En cas de doute, n'hésitez pas à nous appeler.\n\n`;
-  }else{
-    conseilGlobal=`━━━ 💡 CONSEIL ━━━━━━━━━━━━━━━━━━━━━━━\n\nVotre eau nécessitait plusieurs corrections. Nous avons effectué les traitements nécessaires, mais l'équilibre complet peut prendre 12 à 24h à se stabiliser. Évitez de baigner avant ce délai. Si vous constatez que l'eau ne s'améliore pas dans les 24h, contactez-nous.\n\n`;
-  }
-
-  let txt=`Bonjour,\n\nSuite à notre passage du ${p.date}, voici le bilan complet de votre piscine (${client.vol} m³).\n\n`;
+  let txt=`Bonjour,\n\nSuite à notre passage du ${p.date}, voici le bilan de votre piscine (${client.vol} m³).\n\n`;
   txt+=`━━━ 📊 RELEVÉS DU JOUR ━━━━━━━━━━━━━━\n\n${mailReleves}\n\n`;
   txt+=sectionFait;
+  txt+=`━━━ ✅ À FAIRE MAINTENANT ━━━━━━━━━━━\n\n`;
+  txt+=ligneFiltration;
   if(isVert){
-    txt+=`⚠️  Ne pas baigner tant que l'eau n'est pas claire et incolore.\n\n`;
+    txt+=`⚠️  Ne pas baigner tant que l'eau n'est pas claire\n\n`;
+  }
+
+  if(actJ1.length){
+    txt+=`━━━ 📅 DANS 24H ━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    actJ1.forEach((a,i)=>txt+=`${i+1}️⃣  ${a.txt}\n`);
+    txt+="\n";
   }
 
   if(actClear.length){
     txt+=`━━━ 🏊 QUAND L'EAU EST CLAIRE ━━━━━━━\n\n`;
     actClear.forEach((a,i)=>txt+=`${i+1}️⃣  ${a.txt}\n`);
     txt+="\n";
-    if(isVert)txt+=`📅  Refaire une analyse avant de reprendre le traitement normal.\n\n`;
+    if(isVert)txt+=`📅  Refaire une analyse avant de reprendre le traitement normal\n\n`;
   }
 
-  txt+=conseilGlobal;
-  txt+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nN'hésitez pas à nous contacter pour toute question.`;
+  txt+=`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nN'hésitez pas à nous contacter pour toute question.\n\nCordialement,`;
   return txt;
 }
 
@@ -779,8 +746,8 @@ function buildOrd(p,client){
     h+=`</tbody></table></div>`;
   }
 
-  if(client.mode!=="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact<br>• pH 7,0–7,4 · TAC 80–180 · CYA 30–50 mg/L</div></div>`;
-  if(client.mode==="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Électrolyseur</div><div style="font-size:13px;line-height:1.9">• Redox 650–750 mV — production 30–40%<br>• pH 7,0–7,4 · TAC 80–180 · CYA 30–50 mg/L</div></div>`;
+  if(client.mode!=="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact<br>• pH 7,0–7,4 · TAC 80–180 · CYA 25–80 mg/L</div></div>`;
+  if(client.mode==="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Électrolyseur</div><div style="font-size:13px;line-height:1.9">• Redox 650–750 mV — production 30–40%<br>• pH 7,0–7,4 · TAC 80–180 · CYA 25–80 mg/L</div></div>`;
 
   // ── Instructions client (remplace mail) ────────
   h+=`<div class="card"><div class="sec">📋 Instructions client</div>
