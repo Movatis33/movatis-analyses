@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Analyses eau"/>
-<title>Analyses d'eau Movatis v7</title>
+<title>Analyses d'eau Movatis v7.1</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:#070d1a;}
@@ -170,7 +170,7 @@ function buildPres(vals,vol,mode,aspect,algM){
 
   // ── PHASE 3 : Phosphates (avant algicide) ───────
   if(phos>100){
-    const d=phos<=200?Math.round(vol*3):phos<=500?Math.round(vol*6):phos<=1000?Math.round(vol*12):Math.round(vol*24);
+    const d=phos<=200?Math.round(vol*3):phos<=500?Math.round(vol*6):phos<=1000?Math.round(vol*12):phos<=2500?Math.round(vol*12):Math.round(vol*24);
     pr.PHOS_OUT=d+" mL";
     at.push({txt:"PHOS-OUT PM-625 → "+d+" mL — Verser devant les buses de refoulement, filtration en marche 6h minimum. L'eau peut blanchir temporairement, c'est normal. Traiter AVANT l'algicide.",phase:"now"});
     wa.push("⚠️ Phosphates > 100 ppb — PHOS-OUT avant algicide");
@@ -178,19 +178,19 @@ function buildPres(vals,vol,mode,aspect,algM){
 
   // ── PHASE 4 : Choc chlore + algicide ────────────
   if(isD){
-    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau en soirée, filtration en marche 12h minimum. Ne pas baigner tant que FCL < 1 mg/L.",phase:"now"});}
+    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*20)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau en soirée, filtration en marche 12h minimum. Ne pas baigner tant que FCL < 1 mg/L.",phase:"now"});}
     pr.ACTIBON=Math.round(vol*10)+" mL";at.push({txt:"ACTIBON SHOCK PM-420 → "+pr.ACTIBON+" (×2) — Verser en soirée en deux points opposés du bassin, filtration en marche toute la nuit.",phase:"now"});
     pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push({txt:"ALGIKLEAN PM-634 → "+pr.ALGIKLEAN+" — Verser devant les buses de refoulement, filtration en marche 24h.",phase:"now"});
     pr.ULTRA_CLEAR=Math.round(vol*10)+" mL";at.push({txt:"ULTRA CLEAR PM-643 → "+pr.ULTRA_CLEAR+" — Verser lentement devant les buses, filtration en marche. Favorise la floculation des particules vers le filtre.",phase:"now"});
     if(mode==="electrolyseur"){wa.push("⚠️ Électrolyseur : proposer CELNET");pr.CELNET="Selon encrassement";}
   }else if(isV){
-    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*13)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau en soirée, filtration en marche 12h minimum.",phase:"now"});}
+    if(fcl<0.5){pr.RITOCAL_GR=Math.round(vol*20)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau en soirée, filtration en marche 12h minimum.",phase:"now"});}
     pr.ALGIKLEAN=Math.round(vol*20)+" mL";at.push({txt:"ALGIKLEAN PM-634 → "+pr.ALGIKLEAN+" — Verser devant les buses de refoulement, filtration en marche 24h.",phase:"now"});
     pr.ACTIBON=Math.round(vol*5)+" mL";at.push({txt:"ACTIBON SHOCK PM-420 → "+pr.ACTIBON+" — Verser en soirée, filtration en marche toute la nuit.",phase:"now"});
   }else if(aspect==="algues_moutarde"){
     at.push({txt:"Brosser les zones touchées",phase:"now"});
     pr.ALGI_YELLOW=Math.round(vol*10)+" mL";at.push({txt:"ALGI-YELLOW PM-654 → "+pr.ALGI_YELLOW+" — Verser devant les buses de refoulement, filtration en marche 24h. Ne pas mélanger avec d'autres produits.",phase:"now"});
-    pr.RITOCAL_GR=Math.round(vol*10)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau après l'algicide, filtration en marche 12h minimum.",phase:"now"});
+    pr.RITOCAL_GR=Math.round(vol*20)+" g";at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Répartir sur le plan d'eau après l'algicide, filtration en marche 12h minimum.",phase:"now"});
     pr.ULTRA_CLEAR=Math.round(vol*9)+" mL";at.push({txt:"ULTRA CLEAR PM-643 → "+pr.ULTRA_CLEAR+" — À apporter 24h après l'ALGI-YELLOW. Verser lentement devant les buses, filtration en marche.",phase:"j1"});
     wa.push("⚠️ Algues moutarde : cause fréquente = phosphates élevés — vérifier < 100 ppb");
   }
@@ -225,7 +225,7 @@ function buildPres(vals,vol,mode,aspect,algM){
   // ── CYA ──────────────────────────────────────────
   if(!isNaN(cya)){
     if(cya<30){
-      const d=Math.round((52.5-cya)*vol*3);
+      const d=Math.round((52.5-cya)*vol);
       pr.STABILISANT=d+" g";
       // En eau verte, STABILISANT après eau claire — sinon maintenant
       at.push({txt:"STABILISANT PM-401 → "+d+" g — Diluer dans un seau d'eau chaude, verser devant les buses, filtration en marche 48h minimum. Prévenir le client : l'eau peut être trouble pendant 48h.",phase:isV||isD?"clear":"now"});
@@ -245,7 +245,7 @@ function buildPres(vals,vol,mode,aspect,algM){
     at.push({txt:"Poser "+n+" stick(s) skimmer CTX-123 — Film plastique intact, panier propre. Renouveler tous les 5 jours environ selon consommation.",phase:"now"});
   }
   if(mode==="electrolyseur"&&fcl<0.5&&!pr.RITOCAL_GR){
-    pr.RITOCAL_GR=Math.round(vol*13)+" g";
+    pr.RITOCAL_GR=Math.round(vol*20)+" g";
     at.push({txt:"RITOCAL GR PM-531 → "+pr.RITOCAL_GR+" — Amorçage électrolyseur : répartir sur le plan d'eau, filtration en marche 12h avant remise en route de l'électrolyseur.",phase:"now"});
     wa.push("⚠️ Électrolyseur : amorcer RITOCAL GR avant remise en route");
   }
@@ -445,7 +445,7 @@ function buildHome(){
 <div class="hdr">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
     <div>
-      <div class="hdr-logo">💧 Analyses d'eau Movatis <span style="font-size:11px;font-weight:400;color:#6F98CE;opacity:.7">v7</span></div>
+      <div class="hdr-logo">💧 Analyses d'eau Movatis <span style="font-size:11px;font-weight:400;color:#6F98CE;opacity:.7">v7.1</span></div>
       <div class="hdr-sub">Assistant traitement eau — Jean-François Morette</div>
     </div>
     <button onclick="set({showSettings:true})" style="background:${S.apiKey?"#0d2a1a":"#3a1a0a"};border:1px solid ${S.apiKey?"#166534":"#7f3d1d"};border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;color:${S.apiKey?"#4ade80":"#fb923c"};flex-shrink:0;margin-top:2px">${S.apiKey?"⚙️ API ✓":"⚙️ API !"}</button>
@@ -775,6 +775,7 @@ function buildHist(client,analyses){
     const sa=[...analyses].sort((a,b)=>a.ts-b.ts);const pts=sa.map(a=>a.vals[k]).filter(v=>v!==""&&v!==undefined&&v!==null);
     if(!pts.length)return;
     const last=pts[pts.length-1];
+    const saDesc=[...sa].reverse();
     h+=`<div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
     <div><span style="font-weight:700;font-size:14px">${PR[k].lb}</span><span style="font-size:11px;color:#7dd3fc;margin-left:6px">${PR[k].u}</span></div>
@@ -782,7 +783,7 @@ function buildHist(client,analyses){
   </div>
   <div style="display:flex;justify-content:space-between;align-items:flex-end">
     ${spark(pts,COL[k],180,44,PR[k].min,PR[k].max)}
-    <div style="font-size:12px;color:#94a3b8;text-align:right">${sa.filter(a=>a.vals[k]).map(a=>`<div>${a.date}: <b style="color:${COL[k]}">${a.vals[k]}</b></div>`).join("")}</div>
+    <div style="font-size:12px;color:#94a3b8;text-align:right">${saDesc.filter(a=>a.vals[k]).map(a=>`<div>${a.date}: <b style="color:${COL[k]}">${a.vals[k]}</b></div>`).join("")}</div>
   </div>
   <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:6px"><span>Min : ${PR[k].min}</span><span>Max : ${PR[k].max}</span></div>
 </div>`;
