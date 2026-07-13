@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Analyses eau"/>
-<title>Analyses d'eau Movatis v7.1</title>
+<title>Analyses d'eau Movatis v7.2</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:#070d1a;}
@@ -372,7 +372,8 @@ const S={
   showEditClient:false,eVol:"",eMode:"",eName:"",
   sq:"",dvMsg:"",dvLoad:false,pMsg:"",exportAlert:false,
   apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false,
-  vnListening:false,vnShowAll:false,vnEditTs:null
+  vnListening:false,vnShowAll:false,vnEditTs:null,
+  clientSort:localStorage.getItem("movatis_client_sort")||"alpha"
 };
 function set(p){Object.assign(S,p);render();}
 
@@ -435,7 +436,13 @@ function buildSettings(){
 
 function buildHome(){
   const {clients,sq,showAdd,nName,nVol,nMode,dvMsg,exportAlert}=S;
-  const filtered=Object.entries(clients).filter(([,c])=>c.name.toLowerCase().includes(sq.toLowerCase())).sort(([,a],[,b])=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'}));
+  const filtered=Object.entries(clients).filter(([,c])=>c.name.toLowerCase().includes(sq.toLowerCase())).sort(([,a],[,b])=>{
+    if(S.clientSort==="freq"){
+      const na=a.analyses?.length||0,nb=b.analyses?.length||0;
+      if(nb!==na)return nb-na;
+    }
+    return a.name.localeCompare(b.name,'fr',{sensitivity:'base'});
+  });
   const today=new Date().toISOString().slice(0,10);
   const lastExport=localStorage.getItem("movatis_last_export")||"";
   const daysSince=lastExport?Math.floor((new Date(today)-new Date(lastExport))/(1000*60*60*24)):999;
@@ -445,7 +452,7 @@ function buildHome(){
 <div class="hdr">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
     <div>
-      <div class="hdr-logo">💧 Analyses d'eau Movatis <span style="font-size:11px;font-weight:400;color:#6F98CE;opacity:.7">v7.1</span></div>
+      <div class="hdr-logo">💧 Analyses d'eau Movatis <span style="font-size:11px;font-weight:400;color:#6F98CE;opacity:.7">v7.2</span></div>
       <div class="hdr-sub">Assistant traitement eau — Jean-François Morette</div>
     </div>
     <button onclick="set({showSettings:true})" style="background:${S.apiKey?"#0d2a1a":"#3a1a0a"};border:1px solid ${S.apiKey?"#166534":"#7f3d1d"};border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;color:${S.apiKey?"#4ade80":"#fb923c"};flex-shrink:0;margin-top:2px">${S.apiKey?"⚙️ API ✓":"⚙️ API !"}</button>
@@ -484,7 +491,11 @@ function buildHome(){
     ${dvMsg?`<p style="font-size:12px;margin-top:8px;margin-bottom:0;color:${dvMsg.startsWith("✅")?"#4ade80":dvMsg.startsWith("❌")?"#f87171":"#94a3b8"}">${e(dvMsg)}</p>`:""}
   </div>
 
-  <input type="text" placeholder="🔍 Rechercher un client…" value="${e(sq)}" oninput="set({sq:this.value})" style="margin-bottom:12px"/>`;
+  <input type="text" placeholder="🔍 Rechercher un client…" value="${e(sq)}" oninput="set({sq:this.value})" style="margin-bottom:12px"/>
+  <div class="row" style="margin-bottom:12px">
+    <button class="${S.clientSort==="alpha"?"btn":"btn-g"}" style="flex:1;font-size:12px;margin-bottom:0;padding:8px" onclick="setClientSort('alpha')">🔤 A → Z</button>
+    <button class="${S.clientSort==="freq"?"btn":"btn-g"}" style="flex:1;font-size:12px;margin-bottom:0;padding:8px" onclick="setClientSort('freq')">⭐ Plus utilisés</button>
+  </div>`;
 
   if(showAdd){
     h+=`<div class="card">
@@ -960,6 +971,10 @@ window.clearApiKey=()=>{
   set({apiKey:"",showSettings:false});
 };
 window.goClient=id=>set({sel:id,screen:"client",pres:null,showEditClient:false,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:"",salt:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+window.setClientSort=(mode)=>{
+  try{localStorage.setItem("movatis_client_sort",mode);}catch{}
+  set({clientSort:mode});
+};
 window.saveClientInfo=()=>{
   const id=S.sel;if(!id||!S.clients[id])return;
   const vol=parseFloat(String(S.eVol).replace(",","."));
@@ -1149,6 +1164,7 @@ window.vnSaveEdit=function(clientId,ts){
   set({vnEditTs:null});
 };
 window.vnDelete=function(clientId,ts){
+  if(!confirm("Supprimer définitivement cette note de visite ?"))return;
   const vnDb=vnLoad();
   if(vnDb[clientId])vnDb[clientId]=vnDb[clientId].filter(n=>n.ts!==ts);
   vnSave(vnDb);
