@@ -224,12 +224,12 @@ function buildPres(vals,vol,mode,aspect,algM){
 
   // ── CYA ──────────────────────────────────────────
   if(!isNaN(cya)){
-    if(cya<30){
-      const d=Math.round((52.5-cya)*vol);
+    if(cya<25){
+      const d=Math.round((50-cya)*vol);
       pr.STABILISANT=d+" g";
       // En eau verte, STABILISANT après eau claire — sinon maintenant
       at.push({txt:"STABILISANT PM-401 → "+d+" g — Diluer dans un seau d'eau chaude, verser devant les buses, filtration en marche 48h minimum. Prévenir le client : l'eau peut être trouble pendant 48h.",phase:isV||isD?"clear":"now"});
-      wa.push("⚠️ CYA < 30 mg/L — STABILISANT obligatoire. Met 48h à agir.");
+      wa.push("⚠️ CYA < 25 mg/L — STABILISANT obligatoire. Met 48h à agir.");
     }else if(cya>80){
       const cyaCible=50,vDrain=Math.round(vol*(cya-cyaCible)/cya*10)/10;
       wa.push("⚠️ CYA "+cya+" mg/L — dépassement seuil 80 mg/L. Vidange obligatoire.");
