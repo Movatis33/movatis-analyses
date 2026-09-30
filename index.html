@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Analyses eau"/>
-<title>Analyses d'eau Movatis v7.2</title>
+<title>Analyses d'eau Movatis v7.3</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:#070d1a;}
@@ -240,9 +240,15 @@ function buildPres(vals,vol,mode,aspect,algM){
 
   // ── Eau claire — entretien normal ────────────────
   if(aspect==="claire"&&mode!=="electrolyseur"){
-    const n=Math.ceil(vol/20);
-    pr.STICKS_CTX=n+" stick(s) / 5 jours";
-    at.push({txt:"Poser "+n+" stick(s) skimmer CTX-123 — Film plastique intact, panier propre. Renouveler tous les 5 jours environ selon consommation.",phase:"now"});
+    if(fcl>PR.FCL.max){
+      // Chlore libre au-dessus de la cible : pas de sticks tant que FCL ne redescend pas
+      wa.push("⚠️ Chlore libre "+fcl+" mg/L > "+PR.FCL.max+" mg/L — ne pas ajouter de chlore, pas de sticks");
+      at.push({txt:"Ne pas poser de sticks : le chlore libre ("+fcl+" mg/L) est au-dessus de la cible ("+PR.FCL.max+" mg/L). Laisser le taux redescendre, puis reposer les sticks quand FCL ≤ "+PR.FCL.max+" mg/L.",phase:"now"});
+    }else{
+      const n=Math.ceil(vol/20);
+      pr.STICKS_CTX=n+" stick(s) / 5 jours";
+      at.push({txt:"Poser "+n+" stick(s) skimmer CTX-123 — Film plastique intact, panier propre. Renouveler tous les 5 jours environ selon consommation.",phase:"now"});
+    }
   }
   if(mode==="electrolyseur"&&fcl<0.5&&!pr.RITOCAL_GR){
     pr.RITOCAL_GR=Math.round(vol*20)+" g";
@@ -452,7 +458,7 @@ function buildHome(){
 <div class="hdr">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
     <div>
-      <div class="hdr-logo">💧 Analyses d'eau Movatis <span style="font-size:11px;font-weight:400;color:#6F98CE;opacity:.7">v7.2</span></div>
+      <div class="hdr-logo">💧 Analyses d'eau Movatis <span style="font-size:11px;font-weight:400;color:#6F98CE;opacity:.7">v7.3</span></div>
       <div class="hdr-sub">Assistant traitement eau — Jean-François Morette</div>
     </div>
     <button onclick="set({showSettings:true})" style="background:${S.apiKey?"#0d2a1a":"#3a1a0a"};border:1px solid ${S.apiKey?"#166534":"#7f3d1d"};border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;color:${S.apiKey?"#4ade80":"#fb923c"};flex-shrink:0;margin-top:2px">${S.apiKey?"⚙️ API ✓":"⚙️ API !"}</button>
@@ -757,7 +763,11 @@ function buildOrd(p,client){
     h+=`</tbody></table></div>`;
   }
 
-  if(client.mode!=="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact<br>• pH 7,0–7,4 · TAC 80–180 · CYA 25–80 mg/L</div></div>`;
+  if(client.mode!=="electrolyseur"&&p.aspect==="claire"){
+    const fclOrd=parseFloat(p.vals.FCL)||0;
+    const stickLine=fclOrd>PR.FCL.max?`• Pas de sticks tant que le chlore libre est > ${PR.FCL.max} mg/L`:`• ${Math.ceil(client.vol/20)} stick(s) / 5 jours — skimmer, film intact`;
+    h+=`<div class="card"><div class="sec">⚙️ Entretien courant</div><div style="font-size:13px;line-height:1.9">${stickLine}<br>• pH 7,0–7,4 · TAC 80–180 · CYA 25–80 mg/L</div></div>`;
+  }
   if(client.mode==="electrolyseur"&&p.aspect==="claire")h+=`<div class="card"><div class="sec">⚙️ Électrolyseur</div><div style="font-size:13px;line-height:1.9">• Redox 650–750 mV — production 30–40%<br>• pH 7,0–7,4 · TAC 80–180 · CYA 25–80 mg/L</div></div>`;
 
   // ── Instructions client (remplace mail) ────────
