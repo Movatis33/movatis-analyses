@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Analyses eau"/>
-<title>Analyses d'eau Movatis v7.3</title>
+<title>Analyses d'eau Movatis v7.4</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:#070d1a;}
@@ -35,7 +35,7 @@ input[inputmode=decimal]{-webkit-appearance:none;}
 .btn-sm{background:#0a1628;color:#e2e8f0;border:1px solid #1a3356;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-bottom:8px;text-align:left;display:block;}
 .btn-sm.sel{background:#0d2240;color:#38bdf8;border-color:#38bdf8;font-weight:700;}
 .btn-ok{background:#22c55e;color:#fff;}
-input[type=text],input[type=number],select,textarea{background:#070d1a;border:1px solid #1a3356;border-radius:10px;padding:11px 14px;font-size:14px;color:#e2e8f0;width:100%;margin-bottom:10px;outline:none;}
+input[type=text],input[type=number],input[type=date],select,textarea{background:#070d1a;border:1px solid #1a3356;border-radius:10px;padding:11px 14px;font-size:14px;color:#e2e8f0;width:100%;margin-bottom:10px;outline:none;}
 .inp-ok{border-color:#166534!important;}
 .inp-w{border-color:#92400e!important;}
 .inp-e{border-color:#7f1d1d!important;}
@@ -269,7 +269,7 @@ async function claude(messages,max=600){
   const raw=d.content?.find(b=>b.type==="text")?.text||"{}";
   try{return JSON.parse(raw.replace(/```json|```/g,"").trim());}catch{return{};}
 }
-async function readPhoto(b64,mime){return claude([{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:'Analyse cette image de test d\'eau de piscine. Il peut s\'agir d\'une BANDELETTE colorimétrique (Hach, Bayrol, AquaChek, Marina...) tenue devant son flacon avec l\'échelle de référence, ou d\'un PHOTOMÈTRE numérique (PoolLab, Scuba II, eXact...), ou d\'un comparateur liquide.\n\nPOUR UNE BANDELETTE : compare soigneusement les couleurs de chaque plage de la bandelette avec l\'échelle imprimée sur le flacon. Chaque plage correspond à un paramètre. La lecture est approximative — retourne la valeur de l\'échelle la plus proche de la couleur observée.\n\nJSON STRICT uniquement, aucun texte avant ou après :\n{"FCL":null,"TCL":null,"pH":null,"TAC":null,"TH":null,"CYA":null,"Fe":null,"Cu":null,"Phos":null}\n\nCorrespondances : FCL=Free Chlorine/Chlore Libre(mg/L), TCL=Total Chlorine(mg/L), pH=valeur pH, TAC=Alkalinity/Alcalinité(ppm), TH=Hardness/TH(ppm), CYA=Stabilizer/Stabilisant(ppm), Fe=Iron/Fer(mg/L), Cu=Copper/Cuivre(mg/L), Phos=Phosphates(ppb). Nombres uniquement, null si absent ou illisible.'}]}],500);}
+async function readPhoto(b64,mime){return claude([{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:'Analyse cette image de test d\'eau de piscine. Il peut s\'agir d\'une BANDELETTE colorimétrique (Hach, Bayrol, AquaChek, Marina...) tenue devant son flacon avec l\'échelle de référence, ou d\'un PHOTOMÈTRE numérique (PoolLab, Scuba II, eXact...), ou d\'un comparateur liquide.\n\nPOUR UNE BANDELETTE : compare soigneusement les couleurs de chaque plage de la bandelette avec l\'échelle imprimée sur le flacon. Chaque plage correspond à un paramètre. La lecture est approximative — retourne la valeur de l\'échelle la plus proche de la couleur observée.\n\nJSON STRICT uniquement, aucun texte avant ou après :\n{"FCL":null,"TCL":null,"pH":null,"TAC":null,"TH":null,"CYA":null,"Fe":null,"Cu":null,"Phos":null,"salt":null,"date":null}\n\nDATE : sur l\'écran du photomètre, la ligne « Temps de test » affiche l\'heure puis la date de la mesure, par exemple « 10:40:11 12-Nov-2026 » (JJ-Mois en anglais abrégé-AAAA : Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec). Retourne cette date au format AAAA-MM-JJ (exemple : 2026-11-12). Les formats JJ/MM/AAAA sont aussi possibles ; si l\'année est sur 2 chiffres, ajoute 2000. Ne devine jamais : null si la date est absente, coupée ou illisible.\n\nCorrespondances : FCL=Free Chlorine/Chlore Libre(mg/L), TCL=Total Chlorine(mg/L), pH=valeur pH, TAC=Alkalinity/Alcalinité(ppm), TH=Hardness/TH(ppm), CYA=Stabilizer/Stabilisant(ppm), Fe=Iron/Fer(mg/L), Cu=Copper/Cuivre(mg/L), Phos=Phosphates(ppb), salt=Salt/Sel (recopie le nombre affiché tel quel, sans conversion, ex. 6379). Nombres uniquement, null si absent ou illisible.'}]}],500);}
 async function readHTH(b64){return claude([{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:'Rapport HTH Test\'O Pro. Extrais UNIQUEMENT les valeurs mesurées (pas les idéales). JSON STRICT:\n{"clientName":null,"date":null,"TAC":null,"pH":null,"CYA":null,"FCL":null,"CCL":null,"salt":null,"TH":null,"Cu":null,"Fe":null,"Phos":null,"volume":null,"mode":null}\nclientName=nom client, date=JJ/MM/AAAA, TAC=ALK, FCL=F Cl (chlore libre), CCL=chlore combiné, TH=HARD, Cu=COPPER, Fe=IRON, Phos=PHOS(ppb), volume=m³, mode="electrolyseur"/"chlore_non_stab"/"chlore_stab"/"brome"/"uv"/null. Ne pas extraire les recommandations HTH.'}]}],600);}
 
 // ── EXPORT / IMPORT JSON → Drive ──────────────────
@@ -376,7 +376,7 @@ const S={
   showHTH:false,hthStep:"upload",hthRes:[],hthProg:{c:0,t:0},hthDone:{i:0,s:0},
   showAdd:false,nName:"",nVol:"",nMode:"chlore_non_stab",
   showEditClient:false,eVol:"",eMode:"",eName:"",
-  sq:"",dvMsg:"",dvLoad:false,pMsg:"",exportAlert:false,
+  sq:"",dvMsg:"",dvLoad:false,pMsg:"",aDate:"",exportAlert:false,
   apiKey:localStorage.getItem("movatis_apikey")||"",showSettings:false,
   vnListening:false,vnShowAll:false,vnEditTs:null,
   clientSort:localStorage.getItem("movatis_client_sort")||"alpha"
@@ -442,7 +442,7 @@ function buildSettings(){
 
 function buildHome(){
   const {clients,sq,showAdd,nName,nVol,nMode,dvMsg,exportAlert}=S;
-  const filtered=Object.entries(clients).filter(([,c])=>c.name.toLowerCase().includes(sq.toLowerCase())).sort(([,a],[,b])=>{
+  const filtered=Object.entries(clients).filter(([,c])=>{const q=sq.trim().toLowerCase();return q.length<3||c.name.toLowerCase().includes(q);}).sort(([,a],[,b])=>{
     if(S.clientSort==="freq"){
       const na=a.analyses?.length||0,nb=b.analyses?.length||0;
       if(nb!==na)return nb-na;
@@ -458,7 +458,7 @@ function buildHome(){
 <div class="hdr">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
     <div>
-      <div class="hdr-logo">💧 Analyses d'eau Movatis <span style="font-size:11px;font-weight:400;color:#6F98CE;opacity:.7">v7.3</span></div>
+      <div class="hdr-logo">💧 Analyses d'eau Movatis <span style="font-size:11px;font-weight:400;color:#6F98CE;opacity:.7">v7.4</span></div>
       <div class="hdr-sub">Assistant traitement eau — Jean-François Morette</div>
     </div>
     <button onclick="set({showSettings:true})" style="background:${S.apiKey?"#0d2a1a":"#3a1a0a"};border:1px solid ${S.apiKey?"#166534":"#7f3d1d"};border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;color:${S.apiKey?"#4ade80":"#fb923c"};flex-shrink:0;margin-top:2px">${S.apiKey?"⚙️ API ✓":"⚙️ API !"}</button>
@@ -497,7 +497,7 @@ function buildHome(){
     ${dvMsg?`<p style="font-size:12px;margin-top:8px;margin-bottom:0;color:${dvMsg.startsWith("✅")?"#4ade80":dvMsg.startsWith("❌")?"#f87171":"#94a3b8"}">${e(dvMsg)}</p>`:""}
   </div>
 
-  <input type="text" placeholder="🔍 Rechercher un client…" value="${e(sq)}" oninput="set({sq:this.value})" style="margin-bottom:12px"/>
+  <input type="text" id="sqInput" placeholder="🔍 Rechercher un client… (3 lettres min.)" value="${e(sq)}" oninput="onSearch(this)" style="margin-bottom:12px"/>
   <div class="row" style="margin-bottom:12px">
     <button class="${S.clientSort==="alpha"?"btn":"btn-g"}" style="flex:1;font-size:12px;margin-bottom:0;padding:8px" onclick="setClientSort('alpha')">🔤 A → Z</button>
     <button class="${S.clientSort==="freq"?"btn":"btn-g"}" style="flex:1;font-size:12px;margin-bottom:0;padding:8px" onclick="setClientSort('freq')">⭐ Plus utilisés</button>
@@ -579,7 +579,7 @@ function buildClient(client,analyses){
     h+=`<div class="card empty" style="padding:24px"><div style="font-size:36px">📊</div><p style="font-size:13px;margin-top:8px">Aucune analyse</p></div>`;
   }else{
     h+=`<div class="card"><div class="sec">Historique</div>`;
-    [...analyses].sort((a,b)=>a.ts-b.ts).slice(-6).forEach((a,i,arr)=>{
+    [...analyses].sort((a,b)=>b.ts-a.ts).slice(0,6).forEach((a,i,arr)=>{
       h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:8px;${i<arr.length-1?"border-bottom:1px solid #1a3356":""}">
   <div style="flex:1;cursor:pointer" onclick="setPres(${j(a)})">
     <div style="font-size:13px;font-weight:600">${a.date}${a.sourceHTH?`<span class="badge">HTH</span>`:""}</div>
@@ -616,6 +616,10 @@ function buildAnalyse(client){
       <button class="btn" style="background:#0a3d5c;color:#e2e8f0;margin-bottom:6px;flex:1" onclick="document.getElementById('pFileGallery').click()">🖼️ Importer une image</button>
     </div>
     ${pMsg?`<p style="font-size:12px;color:${pMsg.startsWith("✅")?"#4ade80":pMsg.startsWith("❌")?"#f87171":"#94a3b8"};margin:4px 0 0">${e(pMsg)}</p>`:""}
+  </div>
+  <div class="card">
+    <div class="sec">📅 Date de l'analyse</div>
+    <input type="date" value="${e(S.aDate||todayISO())}" max="${todayISO()}" onchange="set({aDate:this.value})" style="margin-bottom:0"/>
   </div>
   <div class="card">
     <div class="sec">Valeurs — vérifier ou saisir</div>
@@ -981,6 +985,16 @@ window.clearApiKey=()=>{
   set({apiKey:"",showSettings:false});
 };
 window.goClient=id=>set({sel:id,screen:"client",pres:null,showEditClient:false,vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:"",salt:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+window.onSearch=function(inp){
+  const prev=S.sq.trim().length>=3;
+  S.sq=inp.value;
+  const now=S.sq.trim().length>=3;
+  if(now||prev){
+    render();
+    const n=document.getElementById("sqInput");
+    if(n){n.focus();const l=n.value.length;n.setSelectionRange(l,l);}
+  }
+};
 window.setClientSort=(mode)=>{
   try{localStorage.setItem("movatis_client_sort",mode);}catch{}
   set({clientSort:mode});
@@ -1013,7 +1027,24 @@ window.shareInstr=()=>{
   else{navigator.clipboard?.writeText(t.value);alert("Instructions copiées dans le presse-papiers");}
 };
 window.copyInstr=()=>{const t=document.getElementById("instrTxt");if(t)navigator.clipboard?.writeText(t.value);};
-window.goAnalyse=()=>set({screen:"analyse",vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:"",salt:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
+function todayISO(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function tsFromFrDate(str,off){
+  const m=/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/.exec(String(str||""));
+  const nw=new Date();
+  if(!m)return nw.getTime()+(off||0);
+  let y=+m[3];if(y<100)y+=2000;
+  const dt=new Date(y,+m[2]-1,+m[1],nw.getHours(),nw.getMinutes(),nw.getSeconds(),nw.getMilliseconds());
+  return isNaN(dt.getTime())?nw.getTime()+(off||0):dt.getTime()+(off||0);
+}
+function validISO(v){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v||"").trim());if(!m)return null;
+  const y=+m[1],mo=+m[2],d=+m[3],dt=new Date(y,mo-1,d);
+  if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d)return null;
+  const now=new Date();now.setHours(23,59,59,999);
+  if(dt>now||y<now.getFullYear()-5)return null;
+  return m[0];
+}
+window.goAnalyse=()=>set({screen:"analyse",aDate:todayISO(),vals:{FCL:"",TCL:"",pH:"",TAC:"",TH:"",CYA:"",Fe:"",Cu:"",Phos:"",salt:""},aspect:"claire",algM:false,filtreLave:false,filtrationMode:"habituel",pMsg:""});
 window.setPres=p=>set({screen:"ordonnance",pres:p});
 window.setDecimalField=function(key,input){Object.assign(S,{[key]:input.value});};
 window.setVDecimal=function(key,input){S.vals={...S.vals,[key]:input.value};};
@@ -1036,7 +1067,11 @@ window.saveAnalyse=()=>{
   if(missing.length&&!confirm(`Attention : ${missing.join(", ")} non renseigné(s). Continuer quand même ?`))return;
   const c=clients[sel];
   const pres=buildPres(vals,c.vol,c.mode,aspect,algM);
-  const entry={date:new Date().toLocaleDateString("fr-FR"),ts:Date.now(),vals:{...vals},aspect,algMoutarde:algM,filtreLave:S.filtreLave,filtrationMode:S.filtrationMode,pres};
+  const iso=validISO(S.aDate)||todayISO();
+  const [yy,mm,dd]=iso.split("-").map(Number);
+  const nw=new Date();
+  const dtSel=new Date(yy,mm-1,dd,nw.getHours(),nw.getMinutes(),nw.getSeconds(),nw.getMilliseconds());
+  const entry={date:dtSel.toLocaleDateString("fr-FR"),ts:dtSel.getTime(),vals:{...vals},aspect,algMoutarde:algM,filtreLave:S.filtreLave,filtrationMode:S.filtrationMode,pres};
   const updated={...clients,[sel]:{...c,analyses:[...(c.analyses||[]),entry]}};
   lsSave(updated);set({clients:updated,pres:entry,screen:"ordonnance"});
 };
@@ -1049,7 +1084,14 @@ window.onPhoto=async function(input){
     const parsed=await readPhoto(b64,file.type||"image/jpeg");
     const vals={...S.vals};
     PKS.forEach(k=>{if(parsed[k]!=null)vals[k]=String(parsed[k]);});
-    set({vals,pMsg:`✅ ${Object.values(parsed).filter(v=>v!==null).length} valeur(s) extraite(s) — vérifie et complète si besoin`});
+    if(parsed.salt!=null){
+      let sv=parseFloat(String(parsed.salt).replace(",","."));
+      if(!isNaN(sv)){if(sv>=100)sv=sv/1000;vals.salt=String(Math.round(sv*10)/10);}else delete parsed.salt;
+    }
+    const nb=PKS.filter(k=>parsed[k]!=null).length;
+    const pd=validISO(parsed.date);
+    const dTxt=pd?" · date lue : "+pd.split("-").reverse().join("/"):" · date non lue sur la photo (vérifie-la)";
+    set({vals,aDate:pd||S.aDate||todayISO(),pMsg:`✅ ${nb} valeur(s) extraite(s)${dTxt} — vérifie et complète si besoin`});
   }catch(err){set({pMsg:"❌ "+(err?.message?.includes("Clé API")?"Clé API manquante — configure-la dans ⚙️":err?.message||"Erreur lecture — saisis manuellement")});}
   input.value="";
 };
@@ -1111,7 +1153,7 @@ window.confirmHTH=function(){
       tid=id;
     }
     const pres=buildPres(vals,upd[tid].vol,upd[tid].mode,r.aspect||"claire",false);
-    upd[tid]={...upd[tid],analyses:[...(upd[tid].analyses||[]),{date,ts:Date.now(),vals,aspect:r.aspect||"claire",algMoutarde:false,pres,sourceHTH:true}]};
+    upd[tid]={...upd[tid],analyses:[...(upd[tid].analyses||[]),{date,ts:tsFromFrDate(date,i),vals,aspect:r.aspect||"claire",algMoutarde:false,pres,sourceHTH:true}]};
     i++;
   });
   lsSave(upd);
